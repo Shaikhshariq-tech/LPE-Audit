@@ -1,0 +1,86 @@
+{
+  "report_type": "evidence_pipeline_integrity",
+  "status": "PASS",
+  "summary": {
+    "triage_record_count": 2,
+    "matrix_record_count": 2,
+    "triage_unique_id_count": 2,
+    "matrix_unique_id_count": 2,
+    "shared_id_count": 2,
+    "triage_duplicate_ids": [],
+    "matrix_duplicate_ids": [],
+    "triage_records_missing_fields": 0,
+    "matrix_records_missing_fields": 0,
+    "checks_passed": 9,
+    "checks_total": 9,
+    "issue_count": 0
+  },
+  "shared_ids": [
+    "EG-001",
+    "EG-002"
+  ],
+  "triage_only_ids": [],
+  "matrix_only_ids": [],
+  "triage_missing_fields": {},
+  "matrix_missing_fields": {},
+  "checks": [
+    {
+      "check": "triage_records_present",
+      "passed": true,
+      "detail": "2 triage records found."
+    },
+    {
+      "check": "matrix_records_present",
+      "passed": true,
+      "detail": "2 matrix records found."
+    },
+    {
+      "check": "triage_gap_id_uniqueness",
+      "passed": true,
+      "detail": "0 duplicate triage IDs."
+    },
+    {
+      "check": "matrix_gap_id_uniqueness",
+      "passed": true,
+      "detail": "0 duplicate matrix IDs."
+    },
+    {
+      "check": "cross_report_gap_id_alignment",
+      "passed": true,
+      "detail": "2 shared; 0 matrix-only; 0 triage-only IDs."
+    },
+    {
+      "check": "triage_required_fields",
+      "passed": true,
+      "detail": "0 triage records have missing required fields."
+    },
+    {
+      "check": "matrix_required_fields",
+      "passed": true,
+      "detail": "0 matrix records have missing required fields."
+    },
+    {
+      "check": "batch73_contract_audit_passed",
+      "passed": true,
+      "detail": "Batch 73 contract artifact must report PASS and zero issues."
+    },
+    {
+      "check": "batch74_gap_id_audit_passed",
+      "passed": true,
+      "detail": "Batch 74 integrity artifact must report PASS, zero issues and zero duplicates."
+    }
+  ],
+  "source_artifacts": {
+    "triage": "reports/batch65-evidence-triage-20261016_025025/evidence-gap-triage.json",
+    "matrix": "reports/batch66-evidence-coverage-20261016_025250/evidence-coverage-matrix.json",
+    "contract_audit": "reports/batch73-contract-audit-20261018_022100/evidence-field-contract.json",
+    "gap_id_integrity_audit": "reports/batch74-gap-id-integrity-20261018_022431/gap-id-integrity.json"
+  },
+  "safety": {
+    "read_only": true,
+    "automatic_reclassification": false,
+    "automatic_remediation": false,
+    "source_files_modified": false,
+    "system_changes_performed": false
+  }
+}
