@@ -98,3 +98,44 @@ def test_severity_and_action_are_advisory():
     assert report["gaps"][0]["severity"] in {"HIGH", "MEDIUM", "LOW"}
     assert report["gaps"][0]["recommended_manual_action"]
     assert report["safety"]["system_changes_performed"] is False
+
+
+def test_evidence_metadata_gaps_use_specific_source_records():
+    source = {
+        "status": "REVIEW_REQUIRED",
+        "summary": {"issue_count": 1},
+        "issues": [{
+            "check": "evidence_metadata",
+            "details": "2 finding records have missing evidence metadata.",
+        }],
+        "details": {
+            "evidence_metadata_gaps": [
+                {
+                    "snapshot": "batch11",
+                    "title": "Sudo policy listing collected",
+                    "missing_fields": ["evidence"],
+                },
+                {
+                    "snapshot": "batch46",
+                    "title": "Sudo policy listing collected",
+                    "missing_fields": ["evidence"],
+                },
+            ],
+        },
+    }
+
+    report = audit_evidence_gaps(source)
+
+    assert report["status"] == "REVIEW_REQUIRED"
+    assert report["summary"]["triaged_gap_count"] == 2
+    assert [gap["source_path"] for gap in report["gaps"]] == [
+        "$.details.evidence_metadata_gaps[0]",
+        "$.details.evidence_metadata_gaps[1]",
+    ]
+    descriptions = [gap["description"] for gap in report["gaps"]]
+    assert any("snapshot=batch11" in item for item in descriptions)
+    assert any("snapshot=batch46" in item for item in descriptions)
+    assert all("missing_fields=" in item and "evidence" in item for item in descriptions)
+    assert all(gap["category"] == "evidence_metadata" for gap in report["gaps"])
+    assert all(gap["automatic_remediation"] is False for gap in report["gaps"])
+    assert all(gap["source_path"] != "$" for gap in report["gaps"])

@@ -63,51 +63,107 @@ def _action_for(text: str) -> str:
 
 
 def _candidate_records(document: Any) -> list[tuple[str, Any]]:
-    """Extract explicit issues and failed checks without assuming one report schema."""
+    """Extract concrete issue records and failed checks, avoiding parent summaries."""
     candidates: list[tuple[str, Any]] = []
-    seen: set[str] = set()
 
-    for path, value in _walk(document):
-        if not isinstance(value, dict):
-            continue
-
-        key_names = {str(key).lower() for key in value}
-        status = _normalise_text(
-            value.get("status", value.get("result", value.get("state", "")))
-        ).lower()
-        explicit_issue = any(
-            key in key_names
-            for key in ("issue", "issues", "error", "errors", "gap", "gaps", "finding")
+    # Prefer concrete evidence-metadata gap entries over aggregate report
+    # status/issues when this known schema is present.
+    if isinstance(document, dict):
+        details = document.get("details")
+        evidence_gaps = (
+            details.get("evidence_metadata_gaps")
+            if isinstance(details, dict) else None
         )
-        failed_status = status in {
-            "fail", "failed", "error", "invalid", "review_required",
-            "review required", "warning", "warn",
-        }
-        issue_count = value.get("issue_count")
-        count_positive = isinstance(issue_count, (int, float)) and issue_count > 0
+        if isinstance(evidence_gaps, list) and evidence_gaps:
+            for index, item in enumerate(evidence_gaps):
+                if not isinstance(item, dict):
+                    continue
+                raw = dict(item)
+                raw["category"] = "evidence_metadata"
+                raw["status"] = "REVIEW_REQUIRED"
+                detail_parts = []
+                for key in ("snapshot", "title", "missing_fields"):
+                    if key in raw:
+                        detail_parts.append(
+                            f"{key}={_normalise_text(raw[key])}"
+                        )
+                detail = "; ".join(detail_parts) or (
+                    "Evidence metadata gap requires manual review."
+                )
+                candidates.append((
+                    f"$.details.evidence_metadata_gaps[{index}]",
+                    {"detail": detail, "raw": raw},
+                ))
+            if candidates:
+                return candidates
 
-        # A record is triaged only if it explicitly describes an issue or a failed check.
-        if not (explicit_issue or failed_status or count_positive):
-            continue
+    seen: set[tuple[str, str]] = set()
 
-        detail_parts = []
-        for key in (
+    issue_keys = {"issues", "errors", "gaps"}
+    failure_states = {
+        "fail", "failed", "error", "invalid", "review_required",
+        "review required", "warning", "warn",
+    }
+
+    def add(path: str, value: Any, *, explicit_issue: bool = False) -> None:
+        if isinstance(value, str):
+            raw = {"message": value, "category": "issue"}
+        elif isinstance(value, dict):
+            raw = value
+        else:
+            return
+
+        status = _normalise_text(
+            raw.get("status", raw.get("result", raw.get("state", "")))
+        ).lower()
+
+        # A failed boolean check is explicit failure evidence.
+        failed = raw.get("passed") is False or status in failure_states
+        if not explicit_issue and not failed:
+            return
+
+        fields = (
             "name", "check", "check_name", "code", "category", "title",
-            "message", "description", "reason", "status", "result",
-        ):
-            if key in value and _normalise_text(value[key]):
-                detail_parts.append(f"{key}={_normalise_text(value[key])}")
+            "message", "details", "description", "reason", "status", "result",
+        )
+        detail_parts = [
+            f"{key}={_normalise_text(raw[key])}"
+            for key in fields
+            if key in raw and _normalise_text(raw[key])
+        ]
         detail = "; ".join(detail_parts) or "Issue record requires manual inspection."
 
-        # Skip broad parent containers when a more specific issue/check child exists.
-        if not explicit_issue and not failed_status and not count_positive:
-            continue
+        # Deduplicate an issue-list entry and its equivalent failed check.
+        identity = (
+            _normalise_text(raw.get("check", raw.get("check_name", raw.get("name", "")))).lower(),
+            _normalise_text(raw.get("details", raw.get("message", raw.get("description", detail)))).lower(),
+        )
+        if identity in seen:
+            return
+        seen.add(identity)
+        candidates.append((path, {"detail": detail, "raw": raw}))
 
-        fingerprint = f"{path}|{detail}"
-        if fingerprint not in seen:
-            seen.add(fingerprint)
-            candidates.append((path, {"detail": detail, "raw": value}))
+    def visit(value: Any, path: str = "$") -> None:
+        if isinstance(value, dict):
+            # Read issue entries from the specific lists, not their parent container.
+            for key, child in value.items():
+                if str(key).lower() in issue_keys and isinstance(child, list):
+                    for index, item in enumerate(child):
+                        add(f"{path}.{key}[{index}]", item, explicit_issue=True)
 
+            # Checks/finding records are candidates only when explicitly failed.
+            if "passed" in value or any(
+                key in value for key in ("status", "result", "state")
+            ):
+                add(path, value)
+
+            for key, child in value.items():
+                visit(child, f"{path}.{key}")
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                visit(child, f"{path}[{index}]")
+
+    visit(document)
     return candidates
 
 

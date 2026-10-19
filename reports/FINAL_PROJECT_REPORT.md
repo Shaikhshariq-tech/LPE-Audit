@@ -1,7 +1,7 @@
 # LPE-Audit — Final Project Report
 
 ## Readiness results
-- Automated tests: 618 passed.
+- Automated tests: 619 passed.
 - Python compilation: PASS.
 - Batch 75 pipeline artifact validation: PASS.
 - Batch 76 provenance artifact validation: PASS.
@@ -12,7 +12,7 @@
 - `reports/batch76-provenance-20261018_023205/artifact-provenance.json`
 
 ## Outstanding review
-Evidence items EG-001 and EG-002 remain manual-review items.
+Two evidence-metadata gaps remain for manual review: the 'Sudo policy listing collected' findings in batch11 and batch46 have empty evidence fields. These are documentation gaps in informational findings, not proof of a privilege-escalation vulnerability. The earlier generic triage IDs EG-001 and EG-002 should not be treated as the canonical source records.
 Passing artifact checks does not prove every vulnerability was detected
 or that all evidence gaps have been resolved.
 
