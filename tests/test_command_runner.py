@@ -19,7 +19,7 @@ def test_rejects_non_string_arguments():
 
 def test_rejects_invalid_timeout():
     runner = CommandRunner()
-    result = runner.run(["printf", "hello"], timeout=0)
+    result = runner.run(["getcap", "-r", "/usr/bin"], timeout=0)
     assert not result.ok
     assert "positive integer" in result.error
 
@@ -33,7 +33,7 @@ def test_constructor_rejects_invalid_default_timeout(timeout):
 def test_reports_missing_command(monkeypatch):
     monkeypatch.setattr("core.command_runner.shutil.which", lambda _: None)
 
-    result = CommandRunner().run(["not-a-real-audit-command"])
+    result = CommandRunner().run(["getcap", "-r", "/usr/bin"])
 
     assert not result.ok
     assert result.returncode is None
@@ -43,11 +43,12 @@ def test_reports_missing_command(monkeypatch):
 def test_successful_command_preserves_output(monkeypatch):
     monkeypatch.setattr(
         "core.command_runner.shutil.which",
-        lambda _: "/usr/bin/example",
+        lambda _: "/usr/sbin/getcap",
     )
 
     def fake_run(*args, **kwargs):
         assert kwargs["shell"] is False
+        assert args[0] == ["getcap", "-r", "/usr/bin"]
         assert kwargs["check"] is False
         return subprocess.CompletedProcess(
             args[0], 0, stdout="audit output", stderr=""
@@ -55,7 +56,7 @@ def test_successful_command_preserves_output(monkeypatch):
 
     monkeypatch.setattr("core.command_runner.subprocess.run", fake_run)
 
-    result = CommandRunner().run(["example", "--version"])
+    result = CommandRunner().run(["getcap", "-r", "/usr/bin"])
 
     assert result.ok
     assert result.returncode == 0
@@ -66,7 +67,7 @@ def test_successful_command_preserves_output(monkeypatch):
 def test_nonzero_exit_is_not_reported_as_success(monkeypatch):
     monkeypatch.setattr(
         "core.command_runner.shutil.which",
-        lambda _: "/usr/bin/example",
+        lambda _: "/usr/sbin/getcap",
     )
     monkeypatch.setattr(
         "core.command_runner.subprocess.run",
@@ -75,7 +76,7 @@ def test_nonzero_exit_is_not_reported_as_success(monkeypatch):
         ),
     )
 
-    result = CommandRunner().run(["example"])
+    result = CommandRunner().run(["getcap", "-r", "/usr/bin"])
 
     assert not result.ok
     assert result.returncode == 2
@@ -85,7 +86,7 @@ def test_nonzero_exit_is_not_reported_as_success(monkeypatch):
 def test_timeout_preserves_partial_output(monkeypatch):
     monkeypatch.setattr(
         "core.command_runner.shutil.which",
-        lambda _: "/usr/bin/example",
+        lambda _: "/usr/sbin/getcap",
     )
 
     def fake_run(*args, **kwargs):
@@ -98,7 +99,7 @@ def test_timeout_preserves_partial_output(monkeypatch):
 
     monkeypatch.setattr("core.command_runner.subprocess.run", fake_run)
 
-    result = CommandRunner(default_timeout=3).run(["example"])
+    result = CommandRunner(default_timeout=3).run(["getcap", "-r", "/usr/bin"])
 
     assert result.timed_out
     assert not result.ok
@@ -111,7 +112,7 @@ def test_timeout_preserves_partial_output(monkeypatch):
 def test_execution_oserror_becomes_result(monkeypatch):
     monkeypatch.setattr(
         "core.command_runner.shutil.which",
-        lambda _: "/usr/bin/example",
+        lambda _: "/usr/sbin/getcap",
     )
 
     def fake_run(*args, **kwargs):
@@ -119,11 +120,39 @@ def test_execution_oserror_becomes_result(monkeypatch):
 
     monkeypatch.setattr("core.command_runner.subprocess.run", fake_run)
 
-    result = CommandRunner().run(["example"])
+    result = CommandRunner().run(["getcap", "-r", "/usr/bin"])
 
     assert not result.ok
     assert result.returncode is None
     assert "simulated execution failure" in result.error
+
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["rm", "-rf", "/tmp/example"],
+        ["/usr/sbin/getcap", "-r", "/usr/bin"],
+        ["getcap", "--help", "/usr/bin"],
+        ["getcap", "-r"],
+        ["getcap", "-r", "-f"],
+        ["getcap", "-r", ""],
+        ["getcap", "-r", " /usr/bin"],
+        ["getcap", "-r", "/usr/bin "],
+        ["getcap", "-r", "--"],
+    ],
+)
+def test_rejects_commands_outside_read_only_policy(monkeypatch, command):
+    def unexpected_run(*args, **kwargs):
+        pytest.fail("Rejected command must not reach subprocess.run")
+
+    monkeypatch.setattr("core.command_runner.subprocess.run", unexpected_run)
+    result = CommandRunner().run(command)
+
+    assert not result.ok
+    assert result.returncode is None
+    assert result.error
+
 
 
 def test_result_requires_zero_exit_and_no_error():

@@ -62,9 +62,27 @@ class CommandRunner:
             )
 
         executable = safe_command[0]
-        if not executable or executable != executable.strip():
+        if executable != "getcap":
             return CommandResult(
-                safe_command, None, error="Invalid executable name"
+                safe_command,
+                None,
+                error="Executable is not permitted by the read-only audit policy",
+            )
+
+        if (
+            len(safe_command) < 3
+            or safe_command[1] != "-r"
+            or any(
+                not arg
+                or arg != arg.strip()
+                or arg.startswith("-")
+                for arg in safe_command[2:]
+            )
+        ):
+            return CommandResult(
+                safe_command,
+                None,
+                error="Only getcap -r PATH... is permitted",
             )
 
         effective_timeout = (
