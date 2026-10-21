@@ -48,7 +48,7 @@ def test_successful_command_preserves_output(monkeypatch):
 
     def fake_run(*args, **kwargs):
         assert kwargs["shell"] is False
-        assert args[0] == ["getcap", "-r", "/usr/bin"]
+        assert args[0] == ["/usr/sbin/getcap", "-r", "/usr/bin"]
         assert kwargs["check"] is False
         return subprocess.CompletedProcess(
             args[0], 0, stdout="audit output", stderr=""
@@ -62,6 +62,27 @@ def test_successful_command_preserves_output(monkeypatch):
     assert result.returncode == 0
     assert result.stdout == "audit output"
     assert result.stderr == ""
+
+
+
+def test_executes_resolved_absolute_path(monkeypatch):
+    monkeypatch.setattr(
+        "core.command_runner.shutil.which",
+        lambda _: "/trusted/bin/getcap",
+    )
+
+    def fake_run(command, **kwargs):
+        assert command == ["/trusted/bin/getcap", "-r", "/usr/bin"]
+        assert kwargs["shell"] is False
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("core.command_runner.subprocess.run", fake_run)
+
+    result = CommandRunner().run(["getcap", "-r", "/usr/bin"])
+
+    assert result.ok
+    # The public result keeps the original, user-requested command.
+    assert result.command == ["getcap", "-r", "/usr/bin"]
 
 
 def test_nonzero_exit_is_not_reported_as_success(monkeypatch):

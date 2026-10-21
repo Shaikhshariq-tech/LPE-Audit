@@ -1,6 +1,7 @@
 """Safe subprocess helper for explicitly selected read-only audit commands."""
 
 from dataclasses import dataclass
+import os
 import shutil
 import subprocess
 
@@ -115,9 +116,14 @@ class CommandRunner:
                 error=f"Command not found: {executable}",
             )
 
+        # Do not let subprocess resolve the executable through PATH again.
+        # Keep the reported command unchanged for compatibility.
+        executable_path = os.path.abspath(executable_path)
+        execution_command = [executable_path, *safe_command[1:]]
+
         try:
             completed = subprocess.run(
-                safe_command,
+                execution_command,
                 shell=False,
                 capture_output=True,
                 text=True,
