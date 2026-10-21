@@ -121,6 +121,8 @@ def scan_sudo_rules() -> list[Finding]:
             ),
             severity="INFO",
             confidence="LOW",
+            affected_path="effective sudo policy (current user)",
+            evidence=output.strip()[:4000],
             detection_reason="Basic policy text checks completed.",
             mitigation="Review the complete effective sudo policy for unnecessary permissions.",
             scanner="sudo",

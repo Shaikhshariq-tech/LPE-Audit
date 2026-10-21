@@ -94,7 +94,7 @@ class CapabilitiesScanner(Scanner):
                 severity="HIGH" if high_risk else "LOW",
                 confidence="HIGH",
                 affected_path=path,
-                evidence=capabilities,
+                evidence=f"{path}: {capabilities}",
                 detection_reason=(
                     "One or more capabilities can grant sensitive privileges."
                     if high_risk

@@ -33,3 +33,29 @@ def test_nopasswd_policy_is_reported_as_review_candidate(monkeypatch):
     assert findings[0].category == "sudo"
     assert "NOPASSWD" in findings[0].evidence
     assert findings[0].severity == "INFO"
+
+
+def test_plain_policy_listing_preserves_evidence_and_target(monkeypatch):
+    policy_output = (
+        "User may run the following commands:\\n"
+        "    (root) /usr/bin/id\\n"
+    )
+    monkeypatch.setattr(sudo_scanner.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(sudo_scanner.shutil, "which", lambda _: "/usr/bin/sudo")
+    monkeypatch.setattr(
+        sudo_scanner.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(
+            returncode=0,
+            stdout=policy_output,
+            stderr="",
+        ),
+    )
+
+    findings = sudo_scanner.scan_sudo_rules()
+
+    assert len(findings) == 1
+    assert findings[0].title == "Sudo policy listing collected"
+    assert findings[0].evidence.strip() == policy_output.strip()
+    assert findings[0].affected_path == "effective sudo policy (current user)"
+    assert findings[0].severity == "INFO"
