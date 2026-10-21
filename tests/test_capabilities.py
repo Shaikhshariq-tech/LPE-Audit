@@ -4,6 +4,7 @@ import platform
 import pytest
 
 from scanners.capabilities import (
+    HIGH_RISK_CAPABILITIES,
     _parse_capability_line,
     scan_capabilities,
 )
@@ -99,3 +100,67 @@ def test_nonzero_exit_with_findings_reports_incomplete_scan(monkeypatch):
     assert findings[0].affected_path == "/usr/bin/demo"
     assert findings[1].title == "capabilities scanner could not complete"
     assert "incomplete" in findings[1].description.lower()
+
+
+@pytest.mark.skipif(platform.system() != "Linux", reason="Linux scanner test")
+@pytest.mark.parametrize("capability", sorted(HIGH_RISK_CAPABILITIES))
+def test_each_high_risk_capability_is_classified_high(monkeypatch, capability):
+    monkeypatch.setattr(
+        "scanners.capabilities.shutil.which",
+        lambda _: "/usr/sbin/getcap",
+    )
+    runner = FakeRunner(SimpleNamespace(
+        stdout=f"/usr/bin/demo {capability}=ep\\n",
+        stderr="",
+        returncode=0,
+        error="",
+        timed_out=False,
+    ))
+
+    findings = scan_capabilities(["/usr/bin"], runner=runner)
+
+    assert len(findings) == 1
+    assert findings[0].severity == "HIGH"
+    assert findings[0].affected_path == "/usr/bin/demo"
+
+
+@pytest.mark.skipif(platform.system() != "Linux", reason="Linux scanner test")
+def test_cap_net_raw_is_classified_low(monkeypatch):
+    monkeypatch.setattr(
+        "scanners.capabilities.shutil.which",
+        lambda _: "/usr/sbin/getcap",
+    )
+    runner = FakeRunner(SimpleNamespace(
+        stdout="/usr/bin/ping cap_net_raw=ep\\n",
+        stderr="",
+        returncode=0,
+        error="",
+        timed_out=False,
+    ))
+
+    findings = scan_capabilities(["/usr/bin"], runner=runner)
+
+    assert len(findings) == 1
+    assert findings[0].severity == "LOW"
+    assert findings[0].affected_path == "/usr/bin/ping"
+
+
+@pytest.mark.skipif(platform.system() != "Linux", reason="Linux scanner test")
+def test_multiple_capabilities_are_classified_using_all_names(monkeypatch):
+    monkeypatch.setattr(
+        "scanners.capabilities.shutil.which",
+        lambda _: "/usr/sbin/getcap",
+    )
+    runner = FakeRunner(SimpleNamespace(
+        stdout="/usr/bin/demo cap_net_raw=ep cap_setuid=ep\\n",
+        stderr="",
+        returncode=0,
+        error="",
+        timed_out=False,
+    ))
+
+    findings = scan_capabilities(["/usr/bin"], runner=runner)
+
+    assert len(findings) == 1
+    assert findings[0].severity == "HIGH"
+    assert "cap_net_raw=ep cap_setuid=ep" in findings[0].evidence
