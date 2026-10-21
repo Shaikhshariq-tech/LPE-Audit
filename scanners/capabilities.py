@@ -119,12 +119,18 @@ class CapabilitiesScanner(Scanner):
             RiskEngine.apply(finding, privileged_context=True)
             findings.append(finding)
 
-        # A non-zero exit can mean some paths were inaccessible; retain any
-        # findings collected from accessible paths.
-        if not findings and result.returncode not in (0, None):
-            return [self._error_finding(
-                "getcap returned a non-zero status and reported no capabilities."
-            )]
+        # Preserve useful findings, but explicitly report incomplete scans.
+        # A timeout, execution error, missing return code, or non-zero exit
+        # means the scan cannot be treated as complete.
+        incomplete = (
+            bool(result.error)
+            or bool(getattr(result, "timed_out", False))
+            or result.returncode != 0
+        )
+        if incomplete:
+            findings.append(self._error_finding(
+                "Capabilities scan was incomplete; review command status and rerun."
+            ))
 
         return findings
 

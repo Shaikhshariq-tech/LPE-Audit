@@ -55,3 +55,47 @@ def test_empty_capability_output_is_not_a_finding(monkeypatch):
     ))
 
     assert scan_capabilities(["/usr/bin"], runner=runner) == []
+
+
+@pytest.mark.skipif(platform.system() != "Linux", reason="Linux scanner test")
+def test_timeout_with_partial_output_reports_incomplete_scan(monkeypatch):
+    monkeypatch.setattr(
+        "scanners.capabilities.shutil.which",
+        lambda _: "/usr/sbin/getcap",
+    )
+    runner = FakeRunner(SimpleNamespace(
+        stdout="/usr/bin/demo cap_setuid=ep\n",
+        stderr="partial warning",
+        returncode=None,
+        error="Command timed out after 30 seconds",
+        timed_out=True,
+    ))
+
+    findings = scan_capabilities(["/usr/bin"], runner=runner)
+
+    assert len(findings) == 2
+    assert findings[0].affected_path == "/usr/bin/demo"
+    assert findings[1].title == "capabilities scanner could not complete"
+    assert "incomplete" in findings[1].description.lower()
+
+
+@pytest.mark.skipif(platform.system() != "Linux", reason="Linux scanner test")
+def test_nonzero_exit_with_findings_reports_incomplete_scan(monkeypatch):
+    monkeypatch.setattr(
+        "scanners.capabilities.shutil.which",
+        lambda _: "/usr/sbin/getcap",
+    )
+    runner = FakeRunner(SimpleNamespace(
+        stdout="/usr/bin/demo cap_net_raw=ep\n",
+        stderr="permission denied on one path",
+        returncode=2,
+        error="",
+        timed_out=False,
+    ))
+
+    findings = scan_capabilities(["/usr/bin"], runner=runner)
+
+    assert len(findings) == 2
+    assert findings[0].affected_path == "/usr/bin/demo"
+    assert findings[1].title == "capabilities scanner could not complete"
+    assert "incomplete" in findings[1].description.lower()
