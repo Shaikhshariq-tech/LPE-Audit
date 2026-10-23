@@ -66,6 +66,7 @@ def validate_report(report: Any) -> list[str]:
         if not isinstance(execution, list):
             errors.append("Report scan_execution must be a list.")
         else:
+            seen_scan_names: set[str] = set()
             for index, item in enumerate(execution):
                 prefix = f"Scan execution entry at index {index}"
                 if not isinstance(item, Mapping):
@@ -75,6 +76,12 @@ def validate_report(report: Any) -> list[str]:
                 name = item.get("name")
                 if not isinstance(name, str) or not name.strip():
                     errors.append(f"{prefix} has a missing or empty name.")
+                elif name in seen_scan_names:
+                    errors.append(
+                        f"Report scan_execution contains duplicate scanner name: {name}."
+                    )
+                else:
+                    seen_scan_names.add(name)
 
                 succeeded = item.get("succeeded")
                 if not isinstance(succeeded, bool):

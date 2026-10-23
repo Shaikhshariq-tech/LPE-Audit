@@ -125,3 +125,46 @@ def test_validator_rejects_inconsistent_coverage():
     assert any("coverage_percent" in error for error in errors)
     assert any("status" in error for error in errors)
     assert any("not_run_modules" in error for error in errors)
+
+
+def test_validator_rejects_duplicate_scanner_execution_names():
+    info = {
+        "_expected_scanners": ["alpha"],
+        "_scan_execution": [
+            {
+                "name": "alpha", "succeeded": True,
+                "duration_seconds": 0.1, "finding_count": 0, "error_type": "",
+            },
+            {
+                "name": "alpha", "succeeded": True,
+                "duration_seconds": 0.2, "finding_count": 0, "error_type": "",
+            },
+        ],
+    }
+
+    report = build_report(info, [], ["system_info", "alpha"])
+    errors = validate_report(report)
+
+    assert any("duplicate scanner name: alpha" in error for error in errors)
+
+
+def test_validator_rejects_conflicting_duplicate_scanner_results():
+    info = {
+        "_expected_scanners": ["alpha"],
+        "_scan_execution": [
+            {
+                "name": "alpha", "succeeded": True,
+                "duration_seconds": 0.1, "finding_count": 0, "error_type": "",
+            },
+            {
+                "name": "alpha", "succeeded": False,
+                "duration_seconds": 0.2, "finding_count": 0,
+                "error_type": "PermissionError",
+            },
+        ],
+    }
+
+    report = build_report(info, [], ["system_info", "alpha"])
+    errors = validate_report(report)
+
+    assert any("duplicate scanner name: alpha" in error for error in errors)
