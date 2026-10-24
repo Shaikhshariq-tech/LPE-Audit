@@ -168,3 +168,110 @@ def test_validator_rejects_conflicting_duplicate_scanner_results():
     errors = validate_report(report)
 
     assert any("duplicate scanner name: alpha" in error for error in errors)
+
+
+def _build_valid_coverage_report():
+    return build_report(
+        {
+            "_expected_scanners": ["alpha", "beta"],
+            "_scan_execution": [
+                {
+                    "name": "alpha", "succeeded": True,
+                    "duration_seconds": 0.1, "finding_count": 0, "error_type": "",
+                },
+                {
+                    "name": "beta", "succeeded": False,
+                    "duration_seconds": 0.2, "finding_count": 0,
+                    "error_type": "PermissionError",
+                },
+            ],
+        },
+        [],
+        ["system_info", "alpha", "beta"],
+    )
+
+
+def test_validator_rejects_coverage_percentage_that_disagrees_with_counts():
+    report = _build_valid_coverage_report()
+    report["scan_coverage"]["coverage_percent"] = 50.0
+
+    errors = validate_report(report)
+
+    assert any("coverage_percent does not match" in error for error in errors)
+
+
+def test_validator_rejects_coverage_status_that_disagrees_with_modules():
+    report = _build_valid_coverage_report()
+    report["scan_coverage"]["status"] = "COMPLETE"
+
+    errors = validate_report(report)
+
+    assert any("status does not match" in error for error in errors)
+
+
+def test_validator_rejects_inconsistent_successful_count():
+    report = _build_valid_coverage_report()
+    report["scan_coverage"]["successful_count"] = 2
+
+    errors = validate_report(report)
+
+    assert any("successful_count" in error for error in errors)
+
+
+def test_validator_rejects_coverage_that_disagrees_with_execution_history():
+    report = _build_valid_coverage_report()
+    report["scan_coverage"]["failed_modules"] = []
+    report["scan_coverage"]["failed_count"] = 0
+
+    errors = validate_report(report)
+
+    assert any("failed_modules does not match scan_execution" in error for error in errors)
+
+
+def test_validator_rejects_inconsistent_successful_count_for_zero_expected_scanners():
+    report = build_report(
+        {
+            "_expected_scanners": [],
+            "_scan_execution": [],
+        },
+        [],
+        ["system_info"],
+    )
+    report["scan_coverage"]["coverage_percent"] = 0.0
+
+    errors = validate_report(report)
+
+    assert any("coverage_percent does not match" in error for error in errors)
+
+
+def test_validator_rejects_unexpected_scanner_in_execution_history():
+    report = build_report(
+        {
+            "_expected_scanners": ["alpha"],
+            "_scan_execution": [
+                {
+                    "name": "alpha",
+                    "succeeded": True,
+                    "duration_seconds": 0.1,
+                    "finding_count": 0,
+                    "error_type": "",
+                },
+                {
+                    "name": "gamma",
+                    "succeeded": True,
+                    "duration_seconds": 0.1,
+                    "finding_count": 0,
+                    "error_type": "",
+                },
+            ],
+        },
+        [],
+        ["system_info", "alpha"],
+    )
+
+    errors = validate_report(report)
+
+    assert any(
+        "scan_execution contains unexpected scanner names" in error
+        for error in errors
+    )

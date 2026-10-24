@@ -183,6 +183,102 @@ def validate_report(report: Any) -> list[str]:
                 if len(not_run) != coverage.get("not_run_count"):
                     errors.append("Scan coverage not_run_count does not match its module list.")
 
+                valid_module_lists = all(
+                    isinstance(value, list)
+                    and all(isinstance(name, str) and name.strip() for name in value)
+                    for value in (expected, included, failed, not_run)
+                )
+                if valid_module_lists:
+                    successful_count = coverage.get("successful_count")
+                    if (
+                        isinstance(successful_count, int)
+                        and not isinstance(successful_count, bool)
+                        and successful_count != len(included) - len(failed)
+                    ):
+                        errors.append(
+                            "Scan coverage successful_count does not match included and failed modules."
+                        )
+
+                    expected_percent = (
+                        round(len(included) / len(expected) * 100, 2)
+                        if expected else 100.0
+                    )
+                    if (
+                        isinstance(percent, (int, float))
+                        and not isinstance(percent, bool)
+                        and 0 <= percent <= 100
+                        and percent != expected_percent
+                    ):
+                        errors.append(
+                            "Scan coverage coverage_percent does not match its module counts."
+                        )
+
+                    expected_status = (
+                        "PARTIAL" if not_run
+                        else "INCOMPLETE" if failed
+                        else "COMPLETE"
+                    )
+                    if status in {"COMPLETE", "PARTIAL", "INCOMPLETE"}:
+                        if status != expected_status:
+                            errors.append(
+                                "Scan coverage status does not match its module lists."
+                            )
+
+                    # When execution history exists, verify coverage against it too.
+                    if (
+                        isinstance(execution, list)
+                        and all(isinstance(item, Mapping) for item in execution)
+                        and all(
+                            isinstance(item.get("name"), str)
+                            and item.get("name", "").strip()
+                            for item in execution
+                        )
+                        and len({
+                            item["name"] for item in execution
+                        }) == len(execution)
+                        and all(isinstance(item.get("succeeded"), bool) for item in execution)
+                    ):
+                        execution_by_name = {
+                            item["name"]: item for item in execution
+                        }
+                        unexpected_execution = (
+                            set(execution_by_name) - set(expected)
+                        )
+                        if unexpected_execution:
+                            errors.append(
+                                "Scan coverage scan_execution contains unexpected scanner names."
+                            )
+
+                        actual_included = [
+                            name for name in expected
+                            if name in execution_by_name
+                        ]
+                        actual_failed = [
+                            name for name in actual_included
+                            if execution_by_name[name]["succeeded"] is False
+                        ]
+                        actual_successful_count = sum(
+                            execution_by_name[name]["succeeded"] is True
+                            for name in actual_included
+                        )
+
+                        if included != actual_included:
+                            errors.append(
+                                "Scan coverage included_modules does not match scan_execution."
+                            )
+                        if failed != actual_failed:
+                            errors.append(
+                                "Scan coverage failed_modules does not match scan_execution."
+                            )
+                        if (
+                            isinstance(successful_count, int)
+                            and not isinstance(successful_count, bool)
+                            and successful_count != actual_successful_count
+                        ):
+                            errors.append(
+                                "Scan coverage successful_count does not match scan_execution."
+                            )
+
     if isinstance(summary, Mapping):
         total = summary.get("total_findings")
         if total is not None:
