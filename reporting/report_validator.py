@@ -313,6 +313,40 @@ def validate_report(report: Any) -> list[str]:
             ):
                 errors.append(f"Summary {field} must be a non-negative integer.")
 
+        # Validate score-source totals when those optional summary fields exist.
+        # Unknown or empty source values are not counted, matching report_builder.py.
+        score_sources_are_complete = all(
+            isinstance(item, Mapping)
+            and item.get("risk_score_source") in {"calculated", "provided"}
+            for item in findings
+        )
+
+        # Older reports may contain findings without score-source metadata.
+        # Only compare totals when every finding has a recognized source.
+        if score_sources_are_complete:
+            actual_score_source_counts = {
+                "calculated_scores": sum(
+                    item.get("risk_score_source") == "calculated"
+                    for item in findings
+                ),
+                "provided_scores": sum(
+                    item.get("risk_score_source") == "provided"
+                    for item in findings
+                ),
+            }
+
+            for field, actual_count in actual_score_source_counts.items():
+                value = summary.get(field)
+                if (
+                    isinstance(value, int)
+                    and not isinstance(value, bool)
+                    and value >= 0
+                    and value != actual_count
+                ):
+                    errors.append(
+                        f"Summary {field} does not match finding score sources."
+                    )
+
         severities = summary.get("severity_counts")
         if isinstance(severities, Mapping):
             actual_counts = Counter(
