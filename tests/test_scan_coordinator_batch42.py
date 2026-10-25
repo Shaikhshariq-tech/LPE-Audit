@@ -59,3 +59,19 @@ def test_one_failure_does_not_stop_later_scanners():
     assert outcomes[0].succeeded is False
     assert outcomes[1].succeeded is True
     assert outcomes[1].findings[0].title == "Test finding"
+
+
+def test_incomplete_scan_finding_marks_outcome_failed():
+    incomplete = Finding(
+        category="suid_sgid",
+        title="suid_sgid scanner could not complete",
+        description="SUID/SGID enumeration was incomplete.",
+        severity="INFO",
+        scanner="suid_sgid",
+    )
+
+    outcome = run_scanner("suid_sgid", lambda: [incomplete])
+
+    assert outcome.succeeded is False
+    assert outcome.findings == [incomplete]
+    assert "incomplete" in outcome.warning.lower()

@@ -123,37 +123,56 @@ def scan_suid_sgid(
     - does not follow symlinks;
     - avoids common pseudo-filesystems.
     """
-    if os.name != "posix":
+    if os.name != "posix" or not platform_is_linux():
         return [
             Finding(
                 category="suid_sgid",
                 title="SUID/SGID scan unavailable",
                 description=(
-                    "SUID/SGID enumeration requires a POSIX/Linux "
-                    "filesystem environment."
+                    "SUID/SGID enumeration is supported only on Linux."
                 ),
                 severity="INFO",
                 confidence="HIGH",
-                detection_reason="Current operating system is not POSIX/Linux.",
-                mitigation="Run LPE-Audit from a Linux environment.",
+                detection_reason="Current operating system is not Linux.",
+                mitigation="Run LPE-Audit from a supported Linux environment.",
                 scanner="suid_sgid",
             )
         ]
 
-    # os.geteuid() exists on normal POSIX systems.
-    if hasattr(os, "geteuid") and platform_is_linux():
-        pass
-
-    paths = search_paths or DEFAULT_SEARCH_PATHS
-    ignored = ignored_paths or DEFAULT_IGNORED_PATHS
+    paths = DEFAULT_SEARCH_PATHS if search_paths is None else search_paths
+    ignored = DEFAULT_IGNORED_PATHS if ignored_paths is None else ignored_paths
 
     findings: list[Finding] = []
     seen: set[tuple[int, int]] = set()
+    error_count = 0
+
+    def record_walk_error(error: OSError) -> None:
+        """Record a traversal error without exposing filesystem details."""
+        nonlocal error_count
+        error_count += 1
 
     for root_string in paths:
         root = Path(root_string)
 
-        if not root.exists() or _is_ignored(root, ignored):
+        if _is_ignored(root, ignored):
+            continue
+
+        try:
+            root_stat = root.stat()
+        except FileNotFoundError:
+            # Missing optional default roots are normal across distributions.
+            # A missing explicitly requested root means requested coverage
+            # could not be inspected.
+            if search_paths is not None:
+                error_count += 1
+            continue
+        except OSError:
+            error_count += 1
+            continue
+
+        if not stat.S_ISDIR(root_stat.st_mode):
+            if search_paths is not None:
+                error_count += 1
             continue
 
         try:
@@ -161,6 +180,7 @@ def scan_suid_sgid(
                 root,
                 topdown=True,
                 followlinks=False,
+                onerror=record_walk_error,
             ):
                 current_path = Path(current_root)
 
@@ -181,7 +201,8 @@ def scan_suid_sgid(
                     try:
                         # lstat prevents following symbolic links.
                         file_stat = path.lstat()
-                    except (OSError, PermissionError):
+                    except OSError:
+                        error_count += 1
                         continue
 
                     if not stat.S_ISREG(file_stat.st_mode):
@@ -259,9 +280,37 @@ def scan_suid_sgid(
 
                     findings.append(finding)
 
-        except (OSError, PermissionError):
-            # An inaccessible root must not terminate the entire audit.
+        except OSError:
+            # Continue auditing other roots, but report incomplete coverage.
+            error_count += 1
             continue
+
+    if error_count:
+        findings.append(
+            Finding(
+                category="suid_sgid",
+                title="suid_sgid scanner could not complete",
+                description=(
+                    "SUID/SGID enumeration was incomplete because "
+                    f"{error_count} filesystem access or traversal "
+                    "error(s) occurred."
+                ),
+                severity="INFO",
+                confidence="HIGH",
+                detection_reason=(
+                    "One or more filesystem traversal or file metadata "
+                    "operations failed."
+                ),
+                potential_impact=(
+                    "Additional SUID/SGID files may not have been detected."
+                ),
+                mitigation=(
+                    "Review filesystem access and permissions, then rerun "
+                    "the audit to improve SUID/SGID coverage."
+                ),
+                scanner="suid_sgid",
+            )
+        )
 
     return findings
 

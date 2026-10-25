@@ -52,6 +52,22 @@ def run_scanner(name: str, scanner: Callable[[], Any]) -> ScanOutcome:
         if not all(isinstance(item, Finding) for item in raw):
             raise TypeError("scanner result contains an invalid finding")
 
+        # A scanner may return useful findings even when enumeration was
+        # incomplete. Preserve those findings, but report failed coverage.
+        incomplete_title = f"{name} scanner could not complete".casefold()
+        if any(item.title.casefold() == incomplete_title for item in raw):
+            return ScanOutcome(
+                name=name,
+                findings=raw,
+                warning=(
+                    f"{name} scanner reported incomplete results; "
+                    "its audit coverage may be incomplete."
+                ),
+                error_type="IncompleteScan",
+                duration_seconds=round(perf_counter() - started, 4),
+                succeeded=False,
+            )
+
         return ScanOutcome(
             name=name,
             findings=raw,
