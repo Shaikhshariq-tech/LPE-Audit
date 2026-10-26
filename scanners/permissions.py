@@ -1,4 +1,4 @@
-"""Read-only checks for world-writable and root-owned group-writable paths."""
+"""Read-only checks for weak filesystem permissions."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ MAX_ENTRIES = 100_000
 
 
 def _ignored_sticky_directory(mode: int) -> bool:
-    """Sticky world-writable directories restrict who can delete entries."""
+    """Sticky world-writable directories restrict deletion by other users."""
     return stat.S_ISDIR(mode) and bool(mode & stat.S_ISVTX)
 
 
@@ -35,53 +35,79 @@ class PermissionsScanner(Scanner):
         search_paths: list[str] | None = None,
         max_entries: int = MAX_ENTRIES,
     ) -> None:
-        self.search_paths = search_paths or DEFAULT_SEARCH_PATHS
+        self.explicit_search_paths = search_paths is not None
+        self.search_paths = list(
+            DEFAULT_SEARCH_PATHS if search_paths is None else search_paths
+        )
         self.max_entries = max(1, int(max_entries))
 
     def scan(self) -> list[Finding]:
         if platform.system().lower() != "linux":
-            return [self.unavailable_finding(
-                "This permissions scanner is designed for Linux."
-            )]
+            return [
+                self.unavailable_finding(
+                    "This permissions scanner is designed for Linux."
+                )
+            ]
+
+        # An explicit empty scope means there is nothing to scan.
+        if not self.search_paths:
+            return []
 
         findings: list[Finding] = []
         seen: set[tuple[int, int]] = set()
         inspected = 0
+        error_count = 0
+        limit_reached = False
 
-        def inspect(path: Path) -> None:
-            nonlocal inspected
+        def record_walk_error(_error: OSError) -> None:
+            """Record traversal errors without exposing sensitive path data."""
+            nonlocal error_count
+            error_count += 1
+
+        def inspect(path: Path) -> bool:
+            """Inspect one path. Return False when the entry budget is exceeded."""
+            nonlocal inspected, error_count, limit_reached
+
             if inspected >= self.max_entries:
-                return
+                limit_reached = True
+                return False
+
+            inspected += 1
 
             try:
                 metadata = path.lstat()
             except OSError:
-                return
+                error_count += 1
+                return True
 
-            # Do not follow symbolic links.
+            # Never follow or report symbolic links as ordinary files.
             if stat.S_ISLNK(metadata.st_mode):
-                return
+                return True
 
-            inspected += 1
             mode = metadata.st_mode
             is_dir = stat.S_ISDIR(mode)
             is_file = stat.S_ISREG(mode)
+
             if not (is_dir or is_file):
-                return
+                return True
 
             world_writable = bool(mode & stat.S_IWOTH)
             root_group_writable_file = (
-                is_file and metadata.st_uid == 0 and bool(mode & stat.S_IWGRP)
+                is_file
+                and metadata.st_uid == 0
+                and bool(mode & stat.S_IWGRP)
             )
 
+            # Sticky world-writable directories are intentionally excluded.
             if world_writable and _ignored_sticky_directory(mode):
-                return
+                return True
+
             if not world_writable and not root_group_writable_file:
-                return
+                return True
 
             identity = (metadata.st_dev, metadata.st_ino)
             if identity in seen:
-                return
+                return True
             seen.add(identity)
 
             if world_writable and is_file and metadata.st_uid == 0:
@@ -127,49 +153,102 @@ class PermissionsScanner(Scanner):
                 ),
                 scanner=self.name,
             )
+
             RiskEngine.apply(
                 finding,
                 privileged_context=(metadata.st_uid == 0),
                 writable_by_unprivileged=world_writable,
             )
             findings.append(finding)
+            return True
 
         for root_string in self.search_paths:
             root = Path(root_string)
-            if not root.exists():
+
+            try:
+                root_metadata = root.lstat()
+            except FileNotFoundError:
+                # Optional default paths may legitimately be absent.
+                if self.explicit_search_paths:
+                    error_count += 1
+                continue
+            except OSError:
+                error_count += 1
                 continue
 
-            inspect(root)
-            if root.is_file() or root.is_symlink():
+            # A root symlink is not a traversal target.
+            if stat.S_ISLNK(root_metadata.st_mode):
+                if not inspect(root):
+                    break
                 continue
+
+            if not inspect(root):
+                break
+
+            # Regular-file roots are inspected directly, without walking.
+            if not stat.S_ISDIR(root_metadata.st_mode):
+                continue
+
+            stop_traversal = False
 
             try:
                 for current_root, directories, files in os.walk(
-                    root, topdown=True, followlinks=False
+                    root,
+                    topdown=True,
+                    followlinks=False,
+                    onerror=record_walk_error,
                 ):
                     current = Path(current_root)
+
+                    # Do not descend into symlinked directories.
                     directories[:] = [
-                        name for name in directories
+                        name
+                        for name in directories
                         if not (current / name).is_symlink()
                     ]
 
                     for name in directories:
-                        inspect(current / name)
-                        if inspected >= self.max_entries:
+                        if not inspect(current / name):
+                            stop_traversal = True
                             break
+
+                    if stop_traversal:
+                        break
 
                     for name in files:
-                        inspect(current / name)
-                        if inspected >= self.max_entries:
+                        if not inspect(current / name):
+                            stop_traversal = True
                             break
 
-                    if inspected >= self.max_entries:
+                    if stop_traversal:
                         break
-            except OSError:
-                continue
 
-            if inspected >= self.max_entries:
+            except OSError:
+                error_count += 1
+                stop_traversal = True
+
+            if stop_traversal:
                 break
+
+        if error_count or limit_reached:
+            reasons = []
+            if error_count:
+                reasons.append(
+                    f"{error_count} filesystem access or traversal error(s)"
+                )
+            if limit_reached:
+                reasons.append(
+                    f"the maximum entry limit of {self.max_entries} was reached "
+                    "before all requested paths could be inspected"
+                )
+
+            findings.append(
+                self._error_finding(
+                    "Permissions scan was incomplete because "
+                    + " and ".join(reasons)
+                    + ". Review the search paths and rerun the scan."
+                )
+            )
 
         return findings
 
