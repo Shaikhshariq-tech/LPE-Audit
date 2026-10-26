@@ -48,10 +48,16 @@ class CapabilitiesScanner(Scanner):
         search_paths: list[str] | None = None,
         runner: CommandRunner | None = None,
     ) -> None:
-        self.search_paths = search_paths or DEFAULT_SEARCH_PATHS
+        self.search_paths = list(
+            DEFAULT_SEARCH_PATHS if search_paths is None else search_paths
+        )
         self.runner = runner or CommandRunner(default_timeout=30)
 
     def scan(self) -> list[Finding]:
+        # An explicit empty path list means there is nothing to scan.
+        if not self.search_paths:
+            return []
+
         if platform.system().lower() != "linux":
             return [self.unavailable_finding(
                 "Linux file capabilities can only be audited on Linux."

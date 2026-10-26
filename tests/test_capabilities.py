@@ -110,7 +110,7 @@ def test_each_high_risk_capability_is_classified_high(monkeypatch, capability):
         lambda _: "/usr/sbin/getcap",
     )
     runner = FakeRunner(SimpleNamespace(
-        stdout=f"/usr/bin/demo {capability}=ep\\n",
+        stdout=f"/usr/bin/demo {capability}=ep\n",
         stderr="",
         returncode=0,
         error="",
@@ -131,7 +131,7 @@ def test_cap_net_raw_is_classified_low(monkeypatch):
         lambda _: "/usr/sbin/getcap",
     )
     runner = FakeRunner(SimpleNamespace(
-        stdout="/usr/bin/ping cap_net_raw=ep\\n",
+        stdout="/usr/bin/ping cap_net_raw=ep\n",
         stderr="",
         returncode=0,
         error="",
@@ -152,7 +152,7 @@ def test_multiple_capabilities_are_classified_using_all_names(monkeypatch):
         lambda _: "/usr/sbin/getcap",
     )
     runner = FakeRunner(SimpleNamespace(
-        stdout="/usr/bin/demo cap_net_raw=ep cap_setuid=ep\\n",
+        stdout="/usr/bin/demo cap_net_raw=ep cap_setuid=ep\n",
         stderr="",
         returncode=0,
         error="",
@@ -164,3 +164,18 @@ def test_multiple_capabilities_are_classified_using_all_names(monkeypatch):
     assert len(findings) == 1
     assert findings[0].severity == "HIGH"
     assert "cap_net_raw=ep cap_setuid=ep" in findings[0].evidence
+
+
+def test_empty_search_paths_do_not_run_getcap(monkeypatch):
+    monkeypatch.setattr(
+        "scanners.capabilities.shutil.which",
+        lambda _: "/usr/sbin/getcap",
+    )
+    runner = FakeRunner(SimpleNamespace(
+        stdout="", stderr="", returncode=0, error="", timed_out=False
+    ))
+
+    findings = scan_capabilities([], runner=runner)
+
+    assert findings == []
+    assert runner.command is None
