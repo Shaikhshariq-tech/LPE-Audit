@@ -47,10 +47,10 @@ def _risky_permission_finding(path: Path, metadata: os.stat_result) -> Finding |
     if not (is_file or is_dir):
         return None
 
-    # Sticky directories have special deletion semantics and are not
-    # automatically classified as unsafe cron configuration directories.
-    if is_dir and mode & stat.S_ISVTX:
-        return None
+    # The sticky bit restricts deletion and renaming of other users' entries,
+    # but does not prevent creating entries in a writable directory. Because
+    # this scanner audits cron-related paths, sticky directories must still
+    # undergo the normal writable-permission checks.
 
     world_writable = bool(mode & stat.S_IWOTH)
     group_writable = bool(mode & stat.S_IWGRP)

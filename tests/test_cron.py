@@ -143,14 +143,19 @@ def test_symlinked_child_directory_is_not_traversed(tmp_path):
     assert all(f.affected_path != str(target) for f in findings)
 
 
-def test_sticky_world_writable_directory_is_ignored(tmp_path):
+def test_sticky_world_writable_cron_directory_is_flagged(tmp_path):
     target = tmp_path / "shared"
     target.mkdir()
     target.chmod(stat.S_ISVTX | 0o777)
 
     findings = scan_cron_jobs(search_paths=[str(target)])
 
-    assert all(f.affected_path != str(target) for f in findings)
+    finding = next(
+        (f for f in findings if f.affected_path == str(target)),
+        None,
+    )
+    assert finding is not None
+    assert "world-writable" in finding.description
 
 
 def test_missing_explicit_entry_is_reported_as_incomplete(tmp_path):
