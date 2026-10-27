@@ -45,6 +45,9 @@ INTERESTING_BINARIES = {
     "sh",
 }
 
+MAX_ENTRIES = 10_000
+
+
 DEFAULT_SEARCH_PATHS = [
     "/bin",
     "/sbin",
@@ -112,6 +115,7 @@ def _classify_file(path: Path, mode: int) -> tuple[str, str]:
 def scan_suid_sgid(
     search_paths: list[str] | None = None,
     ignored_paths: set[str] | None = None,
+    max_entries: int = MAX_ENTRIES,
 ) -> list[Finding]:
     """
     Discover SUID/SGID files and return normalized findings.
@@ -120,17 +124,16 @@ def scan_suid_sgid(
     - operates only on Linux;
     - does not execute discovered files;
     - handles inaccessible directories;
-    - does not follow symlinks;
-    - avoids common pseudo-filesystems.
+    - never follows symbolic links;
+    - avoids common pseudo-filesystems;
+    - limits the number of distinct filesystem paths inspected.
     """
     if os.name != "posix" or not platform_is_linux():
         return [
             Finding(
                 category="suid_sgid",
                 title="SUID/SGID scan unavailable",
-                description=(
-                    "SUID/SGID enumeration is supported only on Linux."
-                ),
+                description="SUID/SGID enumeration is supported only on Linux.",
                 severity="INFO",
                 confidence="HIGH",
                 detection_reason="Current operating system is not Linux.",
@@ -141,33 +144,65 @@ def scan_suid_sgid(
 
     paths = DEFAULT_SEARCH_PATHS if search_paths is None else search_paths
     ignored = DEFAULT_IGNORED_PATHS if ignored_paths is None else ignored_paths
+    max_entries = max(1, int(max_entries))
 
     findings: list[Finding] = []
     seen: set[tuple[int, int]] = set()
+    counted_paths: set[str] = set()
+    inspected = 0
     error_count = 0
+    limit_reached = False
+    stop_scanning = False
 
-    def record_walk_error(error: OSError) -> None:
-        """Record a traversal error without exposing filesystem details."""
+    def record_walk_error(_error: OSError) -> None:
+        """Record traversal errors without exposing filesystem details."""
         nonlocal error_count
         error_count += 1
 
+    def count_entry(path: Path) -> bool:
+        """Count a distinct path; return False when the budget is exhausted."""
+        nonlocal inspected, limit_reached
+
+        path_key = os.path.abspath(str(path))
+        if path_key in counted_paths:
+            return True
+
+        if inspected >= max_entries:
+            limit_reached = True
+            return False
+
+        counted_paths.add(path_key)
+        inspected += 1
+        return True
+
     for root_string in paths:
+        if stop_scanning:
+            break
+
         root = Path(root_string)
 
         if _is_ignored(root, ignored):
             continue
 
         try:
-            root_stat = root.stat()
+            root_stat = root.lstat()
         except FileNotFoundError:
             # Missing optional default roots are normal across distributions.
-            # A missing explicitly requested root means requested coverage
-            # could not be inspected.
             if search_paths is not None:
                 error_count += 1
             continue
         except OSError:
             error_count += 1
+            continue
+
+        if not count_entry(root):
+            break
+
+        # Do not follow a symlink supplied as a scan root. An explicit
+        # symlink root means the requested directory tree was not inspected.
+        if stat.S_ISLNK(root_stat.st_mode):
+            if search_paths is not None:
+                error_count += 1
             continue
 
         if not stat.S_ISDIR(root_stat.st_mode):
@@ -188,23 +223,40 @@ def scan_suid_sgid(
                     directories[:] = []
                     continue
 
-                # Prevent traversal into ignored directories.
+                # Filter ignored trees and symbolic-link directories before
+                # descent. Symbolic links are never traversal targets.
                 directories[:] = [
-                    directory
-                    for directory in directories
-                    if not _is_ignored(current_path / directory, ignored)
+                    name
+                    for name in directories
+                    if not _is_ignored(current_path / name, ignored)
+                    and not (current_path / name).is_symlink()
                 ]
 
-                for filename in files:
-                    path = current_path / filename
+                # Count child directories and files against the same budget.
+                # Directory entries are counted before the walk descends.
+                for name in directories:
+                    if not count_entry(current_path / name):
+                        stop_scanning = True
+                        break
+
+                if stop_scanning:
+                    break
+
+                for name in files:
+                    path = current_path / name
+
+                    if not count_entry(path):
+                        stop_scanning = True
+                        break
 
                     try:
-                        # lstat prevents following symbolic links.
                         file_stat = path.lstat()
                     except OSError:
                         error_count += 1
                         continue
 
+                    # lstat plus this check prevents symlinks and special
+                    # filesystem objects from being treated as binaries.
                     if not stat.S_ISREG(file_stat.st_mode):
                         continue
 
@@ -214,19 +266,15 @@ def scan_suid_sgid(
                     if not (has_suid or has_sgid):
                         continue
 
-                    # Avoid duplicate findings when search paths overlap.
                     identity = (file_stat.st_dev, file_stat.st_ino)
-
                     if identity in seen:
                         continue
-
                     seen.add(identity)
 
                     classification, reason = _classify_file(
                         path,
                         file_stat.st_mode,
                     )
-
                     severity = (
                         "MEDIUM"
                         if classification == "potentially_interesting"
@@ -267,46 +315,56 @@ def scan_suid_sgid(
                             "ensure privileged binaries are owned and "
                             "protected appropriately."
                         ),
-                        references=[
-                            "https://gtfobins.github.io/",
-                        ],
+                        references=["https://gtfobins.github.io/"],
                         scanner="suid_sgid",
                     )
 
-                    RiskEngine.apply(
-                        finding,
-                        privileged_context=True,
-                    )
-
+                    RiskEngine.apply(finding, privileged_context=True)
                     findings.append(finding)
 
+                if stop_scanning:
+                    break
+
         except OSError:
-            # Continue auditing other roots, but report incomplete coverage.
+            # Preserve coverage of other independent search roots.
             error_count += 1
             continue
 
-    if error_count:
+    if error_count or limit_reached:
+        reasons = []
+
+        if error_count:
+            reasons.append(
+                f"{error_count} filesystem access or traversal error(s)"
+            )
+
+        if limit_reached:
+            reasons.append(
+                f"the maximum entry limit of {max_entries} was reached "
+                "before all requested paths could be inspected"
+            )
+
         findings.append(
             Finding(
                 category="suid_sgid",
                 title="suid_sgid scanner could not complete",
                 description=(
                     "SUID/SGID enumeration was incomplete because "
-                    f"{error_count} filesystem access or traversal "
-                    "error(s) occurred."
+                    + " and ".join(reasons)
+                    + "."
                 ),
                 severity="INFO",
                 confidence="HIGH",
                 detection_reason=(
-                    "One or more filesystem traversal or file metadata "
-                    "operations failed."
+                    "Filesystem access errors or the configured entry limit "
+                    "prevented complete SUID/SGID enumeration."
                 ),
                 potential_impact=(
                     "Additional SUID/SGID files may not have been detected."
                 ),
                 mitigation=(
-                    "Review filesystem access and permissions, then rerun "
-                    "the audit to improve SUID/SGID coverage."
+                    "Review filesystem access and scan coverage, then rerun "
+                    "the audit with appropriate access or a suitable entry limit."
                 ),
                 scanner="suid_sgid",
             )

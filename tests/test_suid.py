@@ -93,6 +93,49 @@ def test_walk_error_reports_incomplete_scan_and_preserves_findings(
     )
 
 
+
+@pytest.mark.skipif(os.name != "posix", reason="Requires POSIX filesystem semantics")
+def test_traversal_error_does_not_prevent_scanning_other_roots(
+    tmp_path, monkeypatch
+):
+    first_root = tmp_path / "first-root"
+    second_root = tmp_path / "second-root"
+    first_root.mkdir()
+    second_root.mkdir()
+
+    target = second_root / "audit-test-second-root"
+    target.write_text("test fixture", encoding="utf-8")
+    target.chmod(0o4755)
+
+    original_walk = suid_scanner.os.walk
+
+    def simulated_walk(root, topdown=True, followlinks=False, **kwargs):
+        if os.path.abspath(str(root)) == os.path.abspath(str(first_root)):
+            onerror = kwargs.get("onerror")
+            if onerror is not None:
+                onerror(PermissionError("synthetic traversal error"))
+            return
+
+        yield from original_walk(
+            root,
+            topdown=topdown,
+            followlinks=followlinks,
+            **kwargs,
+        )
+
+    monkeypatch.setattr(suid_scanner.os, "walk", simulated_walk)
+
+    findings = scan_suid_sgid(
+        search_paths=[str(first_root), str(second_root)],
+        ignored_paths=set(),
+    )
+
+    assert any(f.affected_path == str(target) for f in findings)
+    assert any(
+        f.title == "suid_sgid scanner could not complete"
+        for f in findings
+    )
+
 @pytest.mark.skipif(os.name != "posix", reason="Requires POSIX environment")
 def test_non_linux_platform_returns_unavailable_without_walking(
     tmp_path, monkeypatch
@@ -123,5 +166,76 @@ def test_missing_explicit_search_path_reports_incomplete_scan(tmp_path):
     assert any(
         f.title == "suid_sgid scanner could not complete"
         and "incomplete" in f.description.lower()
+        for f in findings
+    )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Requires POSIX filesystem semantics")
+def test_entry_limit_reports_incomplete_scan(tmp_path):
+    target = tmp_path / "limit-test-binary"
+    target.write_text("test fixture", encoding="utf-8")
+    target.chmod(0o4755)
+
+    findings = scan_suid_sgid(
+        search_paths=[str(tmp_path)],
+        ignored_paths=set(),
+        max_entries=1,
+    )
+
+    assert any(
+        f.title == "suid_sgid scanner could not complete"
+        and "maximum entry limit" in f.description
+        for f in findings
+    )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Requires POSIX symbolic links")
+def test_symlink_scan_root_is_not_followed_and_reports_incomplete(
+    tmp_path,
+):
+    actual_root = tmp_path / "actual"
+    actual_root.mkdir()
+    target = actual_root / "suid-target"
+    target.write_text("test fixture", encoding="utf-8")
+    target.chmod(0o4755)
+
+    link_root = tmp_path / "linked-root"
+    try:
+        link_root.symlink_to(actual_root, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("Symbolic links are unavailable in this environment")
+
+    findings = scan_suid_sgid(
+        search_paths=[str(link_root)],
+        ignored_paths=set(),
+    )
+
+    assert not any(
+        f.affected_path == str(target)
+        for f in findings
+    )
+    assert any(
+        f.title == "suid_sgid scanner could not complete"
+        for f in findings
+    )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Requires POSIX permission bits")
+def test_exact_entry_limit_does_not_report_false_incomplete_scan(tmp_path):
+    target = tmp_path / "exact-limit-binary"
+    target.write_text("test fixture", encoding="utf-8")
+    target.chmod(0o4755)
+
+    # One directory root plus one file equals two inspected entries.
+    findings = scan_suid_sgid(
+        search_paths=[str(tmp_path)],
+        ignored_paths=set(),
+        max_entries=2,
+    )
+
+    assert any(f.affected_path == str(target) for f in findings)
+    assert not any(
+        f.title == "suid_sgid scanner could not complete"
+        and "maximum entry limit" in f.description
         for f in findings
     )
