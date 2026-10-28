@@ -172,3 +172,24 @@ def test_detects_root_owned_group_writable_file(tmp_path):
         item for item in findings if item.affected_path == str(target)
     )
     assert "group-writable file owned by root" in finding.detection_reason
+
+@pytest.mark.skipif(
+    not hasattr(os, "geteuid") or os.geteuid() != 0,
+    reason="Test requires permission to create a root-owned fixture",
+)
+def test_detects_root_owned_group_writable_directory(tmp_path):
+    target = tmp_path / "root-group-writable-directory"
+    target.mkdir()
+    target.chown(0, 0)
+    target.chmod(0o770)
+
+    findings = scan_weak_permissions([str(target)])
+    matching = [
+        item for item in findings if item.affected_path == str(target)
+    ]
+
+    assert matching
+    assert any(
+        "group-writable directory owned by root" in item.detection_reason
+        for item in matching
+    )

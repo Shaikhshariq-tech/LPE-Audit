@@ -97,12 +97,21 @@ class PermissionsScanner(Scanner):
                 and metadata.st_uid == 0
                 and bool(mode & stat.S_IWGRP)
             )
+            root_group_writable_directory = (
+                is_dir
+                and metadata.st_uid == 0
+                and bool(mode & stat.S_IWGRP)
+            )
 
             # Sticky world-writable directories are intentionally excluded.
             if world_writable and _ignored_sticky_directory(mode):
                 return True
 
-            if not world_writable and not root_group_writable_file:
+            if not (
+                world_writable
+                or root_group_writable_file
+                or root_group_writable_directory
+            ):
                 return True
 
             identity = (metadata.st_dev, metadata.st_ino)
@@ -122,6 +131,8 @@ class PermissionsScanner(Scanner):
                 reasons.append("world-writable")
             if root_group_writable_file:
                 reasons.append("group-writable file owned by root")
+            if root_group_writable_directory:
+                reasons.append("group-writable directory owned by root")
 
             finding = Finding(
                 category=self.name,
