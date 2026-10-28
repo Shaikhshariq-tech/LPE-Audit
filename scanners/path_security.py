@@ -106,25 +106,32 @@ def scan_path_security(path_value: str | None = None) -> list[Finding]:
             )
             continue
 
-        if not os.path.isdir(component):
+        try:
+            metadata = os.stat(component)
+        except (FileNotFoundError, NotADirectoryError):
             add_finding(
                 "Missing or non-directory PATH component", component,
                 "The entry does not resolve to an existing directory.",
                 "LOW", 20,
             )
             continue
-
-        try:
-            metadata = os.stat(component)
-        except OSError:
+        except OSError as exc:
             add_finding(
-                "PATH component could not be inspected", component,
-                "Directory metadata could not be read.",
-                "LOW", 20,
+                "path_security scanner could not complete", component,
+                (
+                    "Directory metadata could not be read; PATH audit "
+                    f"coverage is incomplete ({type(exc).__name__})."
+                ),
+                "INFO", 5,
             )
             continue
 
         if not stat.S_ISDIR(metadata.st_mode):
+            add_finding(
+                "Missing or non-directory PATH component", component,
+                "The entry exists but is not a directory.",
+                "LOW", 20,
+            )
             continue
 
         mode = stat.S_IMODE(metadata.st_mode)

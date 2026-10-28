@@ -76,3 +76,68 @@ def test_wsl_windows_mount_heuristic():
 def test_duplicate_path_entries_are_checked_once():
     findings = scan_path_security("/definitely/missing:/definitely/missing")
     assert len(findings) == 1
+
+
+def test_path_metadata_permission_error_reports_incomplete_scan(
+    tmp_path, monkeypatch
+):
+    import os
+
+    from core.scan_coordinator import run_scanner
+
+    directory = tmp_path / "restricted"
+    directory.mkdir()
+
+    real_stat = os.stat
+
+    def failing_stat(path, *args, **kwargs):
+        if os.fspath(path) == str(directory):
+            raise PermissionError("synthetic permission error")
+        return real_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr("scanners.path_security.os.stat", failing_stat)
+
+    findings = scan_path_security(str(directory))
+    incomplete = [
+        finding for finding in findings
+        if finding.title == "path_security scanner could not complete"
+    ]
+
+    assert len(incomplete) == 1
+    assert "PermissionError" in incomplete[0].description
+
+    outcome = run_scanner(
+        "path_security",
+        lambda: scan_path_security(str(directory)),
+    )
+    assert outcome.succeeded is False
+    assert outcome.error_type == "IncompleteScan"
+    assert any(
+        finding.title == "path_security scanner could not complete"
+        for finding in outcome.findings
+    )
+
+
+def test_path_metadata_file_not_found_is_not_inspection_failure(
+    tmp_path, monkeypatch
+):
+    import os
+
+    missing = str(tmp_path / "missing")
+    real_stat = os.stat
+
+    def failing_stat(path, *args, **kwargs):
+        if os.fspath(path) == missing:
+            raise FileNotFoundError(missing)
+        return real_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr("scanners.path_security.os.stat", failing_stat)
+
+    findings = scan_path_security(missing)
+
+    assert len(findings) == 1
+    assert findings[0].title == "Missing or non-directory PATH component"
+    assert not any(
+        finding.title == "path_security scanner could not complete"
+        for finding in findings
+    )
