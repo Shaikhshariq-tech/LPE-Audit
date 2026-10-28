@@ -239,3 +239,53 @@ def test_exact_entry_limit_does_not_report_false_incomplete_scan(tmp_path):
         and "maximum entry limit" in f.description
         for f in findings
     )
+
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Requires POSIX permission bits")
+def test_detects_sgid_only_file(tmp_path):
+    target = tmp_path / "sgid-only-test-binary"
+    target.write_text("harmless test fixture", encoding="utf-8")
+    target.chmod(0o2755)
+
+    findings = scan_suid_sgid(
+        search_paths=[str(tmp_path)],
+        ignored_paths=set(),
+    )
+
+    matching = [
+        finding for finding in findings
+        if finding.affected_path == str(target)
+    ]
+
+    assert matching, "The SGID-only file should be detected"
+    assert any(
+        "sgid" in finding.detection_reason.lower()
+        for finding in matching
+    )
+    assert matching[0].permissions == "-rwxr-sr-x"
+
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Requires POSIX permission bits")
+def test_detects_file_with_both_suid_and_sgid(tmp_path):
+    target = tmp_path / "suid-sgid-test-binary"
+    target.write_text("harmless test fixture", encoding="utf-8")
+    target.chmod(0o6755)
+
+    findings = scan_suid_sgid(
+        search_paths=[str(tmp_path)],
+        ignored_paths=set(),
+    )
+
+    matching = [
+        finding for finding in findings
+        if finding.affected_path == str(target)
+    ]
+
+    assert matching, "The file with both permission bits should be detected"
+    assert any(
+        "both suid and sgid" in finding.detection_reason.lower()
+        for finding in matching
+    )
+    assert matching[0].permissions == "-rwsr-sr-x"
