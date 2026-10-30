@@ -152,3 +152,74 @@ def test_non_unit_files_are_not_reported(tmp_path):
     findings = scan_systemd_services([str(tmp_path)])
 
     assert not any(f.affected_path == str(ordinary_file) for f in findings)
+
+
+@pytest.mark.parametrize(
+    "suffix",
+    [
+        ".service",
+        ".socket",
+        ".timer",
+        ".path",
+        ".target",
+        ".mount",
+        ".automount",
+        ".slice",
+        ".scope",
+    ],
+)
+def test_detects_writable_supported_systemd_unit_suffixes(tmp_path, suffix):
+    if platform.system() != "Linux":
+        pytest.skip("Linux-specific scanner")
+
+    unit = tmp_path / f"example{suffix}"
+    unit.write_text("# harmless test fixture\\n", encoding="utf-8")
+    unit.chmod(0o666)
+
+    findings = scan_systemd_services([str(unit)])
+
+    assert any(f.affected_path == str(unit) for f in findings)
+
+
+def test_overlapping_search_roots_do_not_duplicate_findings(tmp_path):
+    if platform.system() != "Linux":
+        pytest.skip("Linux-specific scanner")
+
+    unit = tmp_path / "example.service"
+    unit.write_text("# harmless test fixture\\n", encoding="utf-8")
+    unit.chmod(0o666)
+
+    findings = scan_systemd_services(
+        [str(tmp_path), str(unit)]
+    )
+
+    matches = [
+        finding for finding in findings
+        if finding.affected_path == str(unit)
+    ]
+
+    assert len(matches) == 1
+
+
+def test_explicit_symlink_root_is_not_followed_and_reports_incomplete(
+    tmp_path,
+):
+    if platform.system() != "Linux":
+        pytest.skip("Linux-specific scanner")
+
+    target = tmp_path / "target.service"
+    target.write_text("[Service]\\nExecStart=/bin/true\\n", encoding="utf-8")
+    target.chmod(0o666)
+
+    link = tmp_path / "linked.service"
+    try:
+        link.symlink_to(target)
+    except OSError:
+        pytest.skip("Symlinks unavailable")
+
+    findings = scan_systemd_services([str(link)])
+
+    assert not any(f.affected_path == str(link) for f in findings)
+    incomplete = _incomplete(findings)
+    assert incomplete
+    assert "symbolic link" in incomplete[0].description.lower()
