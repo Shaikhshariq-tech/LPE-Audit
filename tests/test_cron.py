@@ -164,3 +164,62 @@ def test_missing_explicit_entry_is_reported_as_incomplete(tmp_path):
     findings = scan_cron_jobs(search_paths=[str(missing)])
 
     assert _incomplete(findings)
+
+
+def test_overlapping_search_roots_do_not_duplicate_findings(tmp_path):
+    target = tmp_path / "test-cron"
+    target.write_text("# harmless test fixture\n", encoding="utf-8")
+    target.chmod(0o666)
+
+    findings = scan_cron_jobs(
+        search_paths=[str(tmp_path), str(target)]
+    )
+
+    matches = [
+        finding for finding in findings
+        if finding.affected_path == str(target)
+    ]
+
+    assert len(matches) == 1
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "geteuid") or os.geteuid() != 0,
+    reason="Test requires permission to create a root-owned fixture",
+)
+def test_detects_root_owned_group_writable_cron_file(tmp_path):
+    target = tmp_path / "root-group-writable-cron"
+    target.write_text("# harmless test fixture\n", encoding="utf-8")
+    target.chown(0, 0)
+    target.chmod(0o620)
+
+    findings = scan_cron_jobs(search_paths=[str(target)])
+    matching = [
+        finding for finding in findings
+        if finding.affected_path == str(target)
+    ]
+
+    assert matching
+    assert "root-owned and group-writable" in matching[0].description
+    assert matching[0].severity == "LOW"
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "geteuid") or os.geteuid() != 0,
+    reason="Test requires permission to create a root-owned fixture",
+)
+def test_detects_root_owned_group_writable_cron_directory(tmp_path):
+    target = tmp_path / "root-group-writable-cron-dir"
+    target.mkdir()
+    target.chown(0, 0)
+    target.chmod(0o770)
+
+    findings = scan_cron_jobs(search_paths=[str(target)])
+    matching = [
+        finding for finding in findings
+        if finding.affected_path == str(target)
+    ]
+
+    assert matching
+    assert "root-owned and group-writable" in matching[0].description
+    assert matching[0].severity == "LOW"
