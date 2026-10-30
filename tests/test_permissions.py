@@ -193,3 +193,47 @@ def test_detects_root_owned_group_writable_directory(tmp_path):
         "group-writable directory owned by root" in item.detection_reason
         for item in matching
     )
+
+
+def test_exact_entry_limit_does_not_report_false_incomplete_scan(tmp_path):
+    target = tmp_path / "public.txt"
+    target.write_text("test data", encoding="utf-8")
+    target.chmod(0o666)
+
+    # The directory and its one file use exactly two entries.
+    findings = scan_weak_permissions([str(tmp_path)], max_entries=2)
+
+    assert any(item.affected_path == str(target) for item in findings)
+    assert not _incomplete(findings)
+
+
+def test_regular_file_search_root_is_inspected(tmp_path):
+    target = tmp_path / "public.txt"
+    target.write_text("test data", encoding="utf-8")
+    target.chmod(0o666)
+
+    findings = scan_weak_permissions([str(target)], max_entries=1)
+
+    assert any(item.affected_path == str(target) for item in findings)
+    assert not _incomplete(findings)
+
+
+def test_symlink_search_root_is_skipped_without_incomplete_warning(tmp_path):
+    target_dir = tmp_path / "real"
+    target_dir.mkdir()
+
+    target = target_dir / "public.txt"
+    target.write_text("test data", encoding="utf-8")
+    target.chmod(0o666)
+
+    link = tmp_path / "linked-root"
+    try:
+        link.symlink_to(target_dir, target_is_directory=True)
+    except OSError:
+        pytest.skip("Symlink creation is unavailable")
+
+    findings = scan_weak_permissions([str(link)])
+
+    assert all(item.affected_path != str(target) for item in findings)
+    assert all(item.affected_path != str(link) for item in findings)
+    assert not _incomplete(findings)
