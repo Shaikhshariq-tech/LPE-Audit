@@ -31,6 +31,7 @@ def scan_kernel_info(
     distribution = "unknown"
     distribution_version = "unknown"
     proc_version = "unavailable"
+    metadata_errors: list[str] = []
 
     try:
         for line in Path(os_release_path).read_text(
@@ -44,15 +45,19 @@ def scan_kernel_info(
                 distribution = value
             elif key == "VERSION_ID":
                 distribution_version = value
-    except OSError:
+    except (FileNotFoundError, NotADirectoryError):
         pass
+    except OSError as exc:
+        metadata_errors.append(type(exc).__name__)
 
     try:
         proc_version = Path(proc_version_path).read_text(
             encoding="utf-8", errors="replace"
         ).strip()
-    except OSError:
+    except (FileNotFoundError, NotADirectoryError):
         pass
+    except OSError as exc:
+        metadata_errors.append(type(exc).__name__)
 
     wsl_indicator = (
         "WSL" if "microsoft" in release.lower()
@@ -66,7 +71,7 @@ def scan_kernel_info(
         f"wsl_indicator={wsl_indicator}; proc_version={proc_version[:300]}"
     )
 
-    return [Finding(
+    findings = [Finding(
         category="kernel",
         title="Kernel and operating-system inventory collected",
         description=(
@@ -102,3 +107,29 @@ def scan_kernel_info(
         ],
         scanner="kernel",
     )]
+
+    if metadata_errors:
+        error_types = ", ".join(sorted(set(metadata_errors)))
+        findings.append(Finding(
+            category="kernel",
+            title="kernel scanner could not complete",
+            description=(
+                "One or more kernel or distribution metadata files could not "
+                "be read. The inventory finding is retained, but metadata "
+                "coverage may be incomplete."
+            ),
+            severity="INFO",
+            confidence="HIGH",
+            evidence=f"Metadata read error types: {error_types}",
+            detection_reason=(
+                "An attempted metadata read failed with an operating-system "
+                "error other than a missing optional file."
+            ),
+            mitigation=(
+                "Review metadata file accessibility and rerun the audit if "
+                "complete kernel and distribution inventory is required."
+            ),
+            scanner="kernel",
+        ))
+
+    return findings

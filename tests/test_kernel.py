@@ -1,4 +1,5 @@
 import platform
+from pathlib import Path
 
 import pytest
 
@@ -168,3 +169,64 @@ def test_missing_distribution_fields_use_unknown_defaults(tmp_path):
     assert "distribution=unknown" in finding.evidence
     assert "distribution_version=unknown" in finding.evidence
     assert "proc_version=unavailable" in finding.evidence
+
+
+@pytest.mark.parametrize(
+    ("metadata_file", "error_type"),
+    [
+        ("os-release", PermissionError),
+        ("version", OSError),
+    ],
+)
+def test_metadata_read_errors_report_incomplete_scan(
+    tmp_path, monkeypatch, metadata_file, error_type
+):
+    if platform.system() != "Linux":
+        pytest.skip("Linux-specific scanner")
+
+    os_release = tmp_path / "os-release"
+    os_release.write_text(
+        'PRETTY_NAME="Test Linux"\nVERSION_ID="9"\n',
+        encoding="utf-8",
+    )
+    proc_version = tmp_path / "version"
+    proc_version.write_text("Linux version test-build", encoding="utf-8")
+
+    target = {
+        "os-release": os_release,
+        "version": proc_version,
+    }[metadata_file]
+
+    original_read_text = Path.read_text
+
+    def failing_read_text(path, *args, **kwargs):
+        if path == target:
+            raise error_type("private path and error details")
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", failing_read_text)
+
+    findings = scan_kernel_info(
+        kernel_release="test-build",
+        os_release_path=str(os_release),
+        proc_version_path=str(proc_version),
+    )
+
+    inventory = [
+        finding for finding in findings
+        if finding.title == "Kernel and operating-system inventory collected"
+    ]
+    incomplete = [
+        finding for finding in findings
+        if finding.title == "kernel scanner could not complete"
+    ]
+
+    assert len(inventory) == 1, "Useful kernel inventory must be preserved"
+    assert len(incomplete) == 1, "Metadata read failure must be reported"
+    assert incomplete[0].severity == "INFO"
+    assert error_type.__name__ in (
+        incomplete[0].evidence + incomplete[0].description
+    )
+    assert "private path and error details" not in (
+        incomplete[0].evidence + incomplete[0].description
+    )
