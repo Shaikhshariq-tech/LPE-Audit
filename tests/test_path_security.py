@@ -141,3 +141,77 @@ def test_path_metadata_file_not_found_is_not_inspection_failure(
         finding.title == "path_security scanner could not complete"
         for finding in findings
     )
+
+
+def test_symlinked_path_component_uses_target_permissions(tmp_path):
+    target = tmp_path / "writable_target"
+    target.mkdir()
+    target.chmod(0o777)
+
+    link = tmp_path / "path_link"
+    link.symlink_to(target, target_is_directory=True)
+
+    findings = scan_path_security(str(link))
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.title == "Writable PATH directory"
+    assert finding.severity == "HIGH"
+    assert finding.affected_path == str(link)
+    assert "world-writable" in finding.detection_reason
+
+
+def test_group_writable_path_component_is_medium(tmp_path):
+    directory = tmp_path / "group_writable"
+    directory.mkdir()
+    directory.chmod(0o770)
+
+    findings = scan_path_security(str(directory))
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.title == "Writable PATH directory"
+    assert finding.severity == "MEDIUM"
+    assert "group-writable" in finding.detection_reason
+
+
+def test_world_writable_takes_precedence_over_group_writable(tmp_path):
+    directory = tmp_path / "group_and_world_writable"
+    directory.mkdir()
+    directory.chmod(0o777)
+
+    findings = scan_path_security(str(directory))
+
+    assert len(findings) == 1
+    assert findings[0].severity == "HIGH"
+    assert "world-writable" in findings[0].detection_reason
+
+
+def test_existing_file_is_not_accepted_as_path_directory(tmp_path):
+    path_file = tmp_path / "not_a_directory"
+    path_file.write_text("test fixture", encoding="utf-8")
+
+    findings = scan_path_security(str(path_file))
+
+    assert len(findings) == 1
+    assert findings[0].title == "Missing or non-directory PATH component"
+    assert "not a directory" in findings[0].detection_reason
+
+
+def test_wsl_windows_path_heuristic_handles_drive_letter_case():
+    assert _is_wsl_windows_path(
+        "/mnt/C/Program Files",
+        "6.18.40.1-MICROSOFT-STANDARD-WSL2",
+    )
+    assert not _is_wsl_windows_path(
+        "/mnt/c/Program Files",
+        "6.8.0-generic",
+    )
+
+
+def test_wsl_heuristic_rejects_similar_but_unmatched_paths():
+    release = "6.18.40.1-microsoft-standard-WSL2"
+
+    assert not _is_wsl_windows_path("/mnt/cc/tools", release)
+    assert not _is_wsl_windows_path("/mnt", release)
+    assert not _is_wsl_windows_path("/opt/tools", release)
