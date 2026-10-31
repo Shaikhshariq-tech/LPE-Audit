@@ -49,6 +49,7 @@ def scan_sensitive_files(
 
     findings: list[Finding] = []
     seen: set[str] = set()
+    incomplete_reported = False
 
     for raw_path in targets[:10000]:
         path = str(raw_path)
@@ -58,8 +59,35 @@ def scan_sensitive_files(
 
         try:
             metadata = os.lstat(path)
-        except OSError:
-            # Missing or inaccessible files are not automatically findings.
+        except (FileNotFoundError, NotADirectoryError):
+            # Optional files may legitimately be absent.
+            continue
+        except OSError as exc:
+            # Preserve existing findings, but disclose incomplete coverage.
+            # Do not expose the raw OS error message or the target path.
+            if not incomplete_reported:
+                findings.append(Finding(
+                    category="sensitive_files",
+                    title="sensitive_files scanner could not complete",
+                    description=(
+                        "File metadata could not be inspected for at least "
+                        f"one target; audit coverage is incomplete "
+                        f"({type(exc).__name__})."
+                    ),
+                    severity="INFO",
+                    risk_score=0,
+                    confidence="HIGH",
+                    detection_reason=(
+                        "An operating-system error prevented metadata "
+                        "inspection of one or more selected files."
+                    ),
+                    mitigation=(
+                        "Review the scan environment and permissions, then "
+                        "rerun the audit to verify complete coverage."
+                    ),
+                    scanner="sensitive_files",
+                ))
+                incomplete_reported = True
             continue
 
         # Never follow symlinks; only inspect regular files.
