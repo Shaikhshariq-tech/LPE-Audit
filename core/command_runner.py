@@ -106,7 +106,7 @@ class CommandRunner:
             return CommandResult(
                 safe_command,
                 None,
-                error=f"Unable to locate command: {exc}",
+                error=f"Unable to locate command ({type(exc).__name__}).",
             )
 
         if executable_path is None:
@@ -150,5 +150,5 @@ class CommandRunner:
             return CommandResult(
                 command=safe_command,
                 returncode=None,
-                error=f"Command execution failed: {exc}",
+                error=f"Command execution failed ({type(exc).__name__}).",
             )

@@ -145,7 +145,9 @@ def test_execution_oserror_becomes_result(monkeypatch):
 
     assert not result.ok
     assert result.returncode is None
-    assert "simulated execution failure" in result.error
+    assert "Command execution failed" in result.error
+    assert "OSError" in result.error
+    assert "simulated execution failure" not in result.error
 
 
 
@@ -181,3 +183,18 @@ def test_result_requires_zero_exit_and_no_error():
     assert not CommandResult(["example"], 1).ok
     assert not CommandResult(["example"], 0, error="problem").ok
     assert not CommandResult(["example"], None, timed_out=True).ok
+
+
+def test_lookup_oserror_is_sanitized(monkeypatch):
+    def fake_which(_):
+        raise OSError("synthetic lookup error containing private details")
+
+    monkeypatch.setattr("core.command_runner.shutil.which", fake_which)
+
+    result = CommandRunner().run(["getcap", "-r", "/usr/bin"])
+
+    assert not result.ok
+    assert result.returncode is None
+    assert "Unable to locate command" in result.error
+    assert "OSError" in result.error
+    assert "synthetic lookup error containing private details" not in result.error
