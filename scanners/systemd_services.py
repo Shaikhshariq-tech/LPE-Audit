@@ -82,7 +82,7 @@ def scan_systemd_services(
         try:
             metadata = path.lstat()
         except OSError as exc:
-            mark_incomplete(f"Could not inspect {path}: {exc}")
+            mark_incomplete(f"Could not inspect {path} ({type(exc).__name__}).")
             return
 
         # Never follow symbolic links.
@@ -182,7 +182,7 @@ def scan_systemd_services(
             continue
         except OSError as exc:
             if explicit_paths:
-                mark_incomplete(f"Could not inspect search path {root}: {exc}")
+                mark_incomplete(f"Could not inspect search path {root} ({type(exc).__name__}).")
             continue
 
         if stat.S_ISLNK(root_metadata.st_mode):
@@ -211,7 +211,7 @@ def scan_systemd_services(
             continue
 
         def walk_error(exc: OSError) -> None:
-            mark_incomplete(f"Filesystem traversal failed: {exc}")
+            mark_incomplete(f"Filesystem traversal failed ({type(exc).__name__}).")
 
         try:
             for current, directories, files in os.walk(
@@ -246,7 +246,7 @@ def scan_systemd_services(
                     break
 
         except OSError as exc:
-            mark_incomplete(f"Filesystem traversal failed under {root}: {exc}")
+            mark_incomplete(f"Filesystem traversal failed under {root} ({type(exc).__name__}).")
 
         if limit_reached:
             break

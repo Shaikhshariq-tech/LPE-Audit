@@ -99,7 +99,8 @@ def test_walk_error_reports_incomplete_and_preserves_findings(
 
     assert any(f.affected_path == str(unit) for f in findings)
     assert _incomplete(findings)
-    assert "synthetic traversal error" in _incomplete(findings)[0].description
+    assert "PermissionError" in _incomplete(findings)[0].description
+    assert "synthetic traversal error" not in _incomplete(findings)[0].description
 
 
 def test_entry_limit_reports_incomplete_coverage(tmp_path):
