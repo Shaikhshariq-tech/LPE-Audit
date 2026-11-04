@@ -29,7 +29,7 @@ def _load_report(report_path):
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise RemediationPlanError(
-            f"Cannot read valid JSON report {path}: {exc}"
+            f"Cannot read valid JSON report ({type(exc).__name__})."
         ) from exc
 
     if not isinstance(data, dict):
@@ -243,6 +243,6 @@ def write_remediation_plan(
             encoding="utf-8",
         )
     except OSError as exc:
-        raise RemediationPlanError(f"Cannot write remediation plan: {exc}") from exc
+        raise RemediationPlanError(f"Cannot write remediation plan ({type(exc).__name__}).") from exc
 
     return plan, json_path, markdown_path

@@ -83,3 +83,50 @@ def test_refuses_source_overwrite(tmp_path):
     src.write_text('{"findings":[]}', encoding="utf-8")
     with pytest.raises(FindingTraceabilityError, match="must not overwrite"):
         audit_finding_traceability_file(src, src)
+
+
+def test_file_read_error_does_not_expose_exception_details(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    source = (tmp_path / "private-source.json").resolve()
+    output = tmp_path / "audit.json"
+    original_read_text = Path.read_text
+    secret = "SENSITIVE_PRIVATE_READ_PATH"
+
+    def blocked_read(path, *args, **kwargs):
+        if path.resolve() == source:
+            raise PermissionError(secret)
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", blocked_read)
+
+    with pytest.raises(FindingTraceabilityError) as exc_info:
+        audit_finding_traceability_file(source, output)
+
+    assert "PermissionError" in str(exc_info.value)
+    assert secret not in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, PermissionError)
+
+
+def test_file_write_error_does_not_expose_exception_details(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    source = tmp_path / "source.json"
+    source.write_text('{"findings":[]}', encoding="utf-8")
+    output = (tmp_path / "private-output.json").resolve()
+    original_write_text = Path.write_text
+    secret = "SENSITIVE_PRIVATE_WRITE_PATH"
+
+    def blocked_write(path, *args, **kwargs):
+        if path.resolve() == output:
+            raise PermissionError(secret)
+        return original_write_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", blocked_write)
+
+    with pytest.raises(FindingTraceabilityError) as exc_info:
+        audit_finding_traceability_file(source, output)
+
+    assert "PermissionError" in str(exc_info.value)
+    assert secret not in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, PermissionError)

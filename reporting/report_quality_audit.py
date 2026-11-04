@@ -145,7 +145,7 @@ def audit_report_file(source_path, output_path):
         report = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ReportQualityAuditError(
-            f"Cannot read valid JSON report {source}: {exc}"
+            f"Cannot read valid JSON report ({type(exc).__name__})."
         ) from exc
 
     result = audit_report_quality(report)
@@ -158,7 +158,7 @@ def audit_report_file(source_path, output_path):
         )
     except OSError as exc:
         raise ReportQualityAuditError(
-            f"Cannot write quality audit: {exc}"
+            f"Cannot write quality audit ({type(exc).__name__})."
         ) from exc
 
     return result, output

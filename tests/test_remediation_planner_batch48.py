@@ -116,3 +116,52 @@ def test_rejects_malformed_report(tmp_path):
     source.write_text("{not json", encoding="utf-8")
     with pytest.raises(RemediationPlanError, match="Cannot read valid JSON"):
         write_remediation_plan(source, tmp_path / "plan.json", tmp_path / "plan.md")
+
+
+def test_report_read_error_does_not_expose_exception_details(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    source = (tmp_path / "private-source.json").resolve()
+    json_out = tmp_path / "plan.json"
+    md_out = tmp_path / "plan.md"
+    original_read_text = Path.read_text
+    secret = "SENSITIVE_PRIVATE_READ_PATH"
+
+    def blocked_read(path, *args, **kwargs):
+        if path.resolve() == source:
+            raise PermissionError(secret)
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", blocked_read)
+
+    with pytest.raises(RemediationPlanError) as exc_info:
+        write_remediation_plan(source, json_out, md_out)
+
+    assert "PermissionError" in str(exc_info.value)
+    assert secret not in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, PermissionError)
+
+
+def test_plan_write_error_does_not_expose_exception_details(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    source = tmp_path / "source.json"
+    source.write_text(json.dumps(report([])), encoding="utf-8")
+    json_out = (tmp_path / "private-plan.json").resolve()
+    md_out = tmp_path / "plan.md"
+    original_write_text = Path.write_text
+    secret = "SENSITIVE_PRIVATE_WRITE_PATH"
+
+    def blocked_write(path, *args, **kwargs):
+        if path.resolve() == json_out:
+            raise PermissionError(secret)
+        return original_write_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", blocked_write)
+
+    with pytest.raises(RemediationPlanError) as exc_info:
+        write_remediation_plan(source, json_out, md_out)
+
+    assert "PermissionError" in str(exc_info.value)
+    assert secret not in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, PermissionError)

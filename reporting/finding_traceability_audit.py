@@ -142,7 +142,7 @@ def audit_finding_traceability_file(source_path, output_path):
         report = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise FindingTraceabilityError(
-            f"Cannot read valid JSON report {source}: {exc}"
+            f"Cannot read valid JSON report ({type(exc).__name__})."
         ) from exc
 
     result = audit_finding_traceability(report)
@@ -154,6 +154,6 @@ def audit_finding_traceability_file(source_path, output_path):
         )
     except OSError as exc:
         raise FindingTraceabilityError(
-            f"Cannot write traceability audit: {exc}"
+            f"Cannot write traceability audit ({type(exc).__name__})."
         ) from exc
     return result, output
