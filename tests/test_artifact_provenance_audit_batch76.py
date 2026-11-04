@@ -2,7 +2,11 @@ import hashlib
 import json
 import subprocess
 import sys
+
+import pytest
 from pathlib import Path
+
+import reporting.artifact_provenance_audit as provenance
 
 from reporting.artifact_provenance_audit import (
     build_report,
@@ -158,3 +162,73 @@ def test_cli_rejects_identical_output_paths(tmp_path):
     result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode != 0
     assert not output.exists()
+
+
+
+def test_json_load_error_does_not_expose_exception_message(tmp_path, monkeypatch):
+    artifact = tmp_path / "protected.json"
+    secret = "PRIVATE_PATH_AND_ERROR_DETAILS"
+
+    def fail_read(self, *args, **kwargs):
+        raise PermissionError(secret)
+
+    monkeypatch.setattr(Path, "read_text", fail_read)
+
+    data, error = provenance._load_json(artifact)
+
+    assert data is None
+    assert "PermissionError" in error
+    assert secret not in error
+
+
+def test_fingerprint_error_does_not_expose_exception_message(
+    tmp_path, monkeypatch
+):
+    artifact = make_artifact(tmp_path / "artifact.json", "example")
+    secret = "PRIVATE_FINGERPRINT_ERROR_DETAILS"
+
+    def fail_hash(path):
+        raise PermissionError(secret)
+
+    monkeypatch.setattr(provenance, "_sha256", fail_hash)
+
+    record = provenance._artifact_record("example", str(artifact))
+
+    assert record["sha256"] is None
+    assert "PermissionError" in record["error"]
+    assert secret not in record["error"]
+
+
+def test_cli_write_error_does_not_expose_exception_message(
+    tmp_path, monkeypatch, capsys
+):
+    inputs = make_inputs(tmp_path)
+    json_out = tmp_path / "output.json"
+    markdown_out = tmp_path / "output.md"
+    secret = "PRIVATE_OUTPUT_ERROR_DETAILS"
+    original_write_text = Path.write_text
+
+    def fail_output_write(self, *args, **kwargs):
+        if self == json_out:
+            raise PermissionError(secret)
+        return original_write_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", fail_output_write)
+
+    argv = [
+        "--triage", inputs["triage"],
+        "--matrix", inputs["matrix"],
+        "--contract", inputs["contract"],
+        "--integrity", inputs["integrity"],
+        "--pipeline", inputs["pipeline"],
+        "--json-out", str(json_out),
+        "--markdown-out", str(markdown_out),
+    ]
+
+    with pytest.raises(SystemExit) as exc_info:
+        provenance.main(argv)
+
+    captured = capsys.readouterr()
+    assert exc_info.value.code == 2
+    assert "PermissionError" in captured.err
+    assert secret not in captured.err

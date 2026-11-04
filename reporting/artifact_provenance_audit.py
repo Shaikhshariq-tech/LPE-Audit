@@ -25,7 +25,7 @@ def _load_json(path: Path) -> tuple[Any | None, str | None]:
     try:
         return json.loads(path.read_text(encoding="utf-8")), None
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        return None, f"{type(exc).__name__}: {exc}"
+        return None, f"Could not read valid JSON ({type(exc).__name__})."
 
 
 def _report_metadata(data: Any) -> dict[str, Any]:
@@ -70,7 +70,7 @@ def _artifact_record(label: str, raw_path: str) -> dict[str, Any]:
         record["size_bytes"] = path.stat().st_size
         record["sha256"] = _sha256(path)
     except OSError as exc:
-        record["error"] = f"{type(exc).__name__}: {exc}"
+        record["error"] = f"Could not fingerprint artifact ({type(exc).__name__})."
         return record
 
     data, error = _load_json(path)
@@ -256,7 +256,7 @@ def main(argv: list[str] | None = None) -> int:
         json_out.write_text(json_text, encoding="utf-8")
         markdown_out.write_text(markdown_text, encoding="utf-8")
     except OSError as exc:
-        parser.exit(2, f"ERROR: Could not write audit output: {exc}\n")
+        parser.exit(2, f"ERROR: Could not write audit output ({type(exc).__name__}).\n")
 
     print(json.dumps({
         "status": report["status"],
