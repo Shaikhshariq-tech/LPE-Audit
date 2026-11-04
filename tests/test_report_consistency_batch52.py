@@ -127,3 +127,65 @@ def test_whitespace_only_id_is_not_counted():
 
     assert result["findings_with_ids"] == 0
     assert result["duplicate_finding_ids"] == 0
+
+def test_underlying_audit_exception_message_is_sanitized(monkeypatch):
+    import reporting.report_quality_audit as quality_audit
+
+    def fail_with_sensitive_message(report):
+        raise RuntimeError("sensitive filesystem path /private/example")
+
+    monkeypatch.setattr(
+        quality_audit,
+        "audit_report_quality",
+        fail_with_sensitive_message,
+    )
+
+    with pytest.raises(ReportConsistencyError) as exc_info:
+        audit_report_consistency(sample_report())
+
+    message = str(exc_info.value)
+    assert "RuntimeError" in message
+    assert "sensitive filesystem path" not in message
+    assert "/private/example" not in message
+
+
+def test_source_read_error_message_is_sanitized(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    source = tmp_path / "source.json"
+    original_open = Path.open
+
+    def failing_open(path, *args, **kwargs):
+        if path == source.resolve():
+            raise PermissionError("sensitive read path /private/source")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", failing_open)
+
+    with pytest.raises(ReportConsistencyError) as exc_info:
+        audit_report_consistency_file(source, tmp_path / "audit.json")
+
+    assert "PermissionError" in str(exc_info.value)
+    assert "/private/source" not in str(exc_info.value)
+
+
+def test_output_write_error_message_is_sanitized(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    source = tmp_path / "source.json"
+    output = tmp_path / "audit.json"
+    source.write_text(json.dumps(sample_report()), encoding="utf-8")
+    original_open = Path.open
+
+    def failing_open(path, *args, **kwargs):
+        if path == output.resolve():
+            raise PermissionError("sensitive write path /private/output")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", failing_open)
+
+    with pytest.raises(ReportConsistencyError) as exc_info:
+        audit_report_consistency_file(source, output)
+
+    assert "PermissionError" in str(exc_info.value)
+    assert "/private/output" not in str(exc_info.value)

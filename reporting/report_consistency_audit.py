@@ -42,7 +42,7 @@ def audit_report_consistency(report: dict[str, Any]) -> dict[str, Any]:
         }
     except Exception as exc:
         raise ReportConsistencyError(
-            f"An underlying audit could not process this report: {exc}"
+            f"An underlying audit could not process this report ({type(exc).__name__})."
         ) from exc
 
     summaries = {}
@@ -116,7 +116,7 @@ def audit_report_consistency_file(source_path, output_path):
         with source.open("r", encoding="utf-8") as handle:
             report = json.load(handle)
     except (OSError, json.JSONDecodeError) as exc:
-        raise ReportConsistencyError(f"Cannot read source JSON report: {exc}") from exc
+        raise ReportConsistencyError(f"Cannot read source JSON report ({type(exc).__name__}).") from exc
 
     result = audit_report_consistency(report)
     try:
@@ -125,5 +125,5 @@ def audit_report_consistency_file(source_path, output_path):
             json.dump(result, handle, indent=2, ensure_ascii=False)
             handle.write("\n")
     except OSError as exc:
-        raise ReportConsistencyError(f"Cannot write audit output: {exc}") from exc
+        raise ReportConsistencyError(f"Cannot write audit output ({type(exc).__name__}).") from exc
     return result, str(output)
