@@ -89,3 +89,41 @@ def test_invalid_json_is_rejected(tmp_path):
     source.write_text("{invalid", encoding="utf-8")
     with pytest.raises(ReportConsistencyError, match="Cannot read"):
         audit_report_consistency_file(source, tmp_path / "audit.json")
+
+def test_id_summary_counts_only_nonempty_string_ids():
+    report = sample_report()
+    report["findings"] = [
+        {"finding_id": "F-001"},
+        {"finding_id": None},
+        {"finding_id": 123},
+        {"finding_id": True},
+        {"finding_id": ""},
+        {"finding_id": "   "},
+        {"finding_id": "F-002"},
+        {"finding_id": " F-002 "},
+    ]
+
+    result = audit_report_consistency(report)
+
+    assert result["source_findings"] == 8
+    assert result["findings_with_ids"] == 3
+    assert result["duplicate_finding_ids"] == 1
+
+
+@pytest.mark.parametrize("invalid_id", [None, 123, True, False, [], {}])
+def test_invalid_id_types_are_not_counted(invalid_id):
+    report = {"findings": [{"finding_id": invalid_id}]}
+
+    result = audit_report_consistency(report)
+
+    assert result["findings_with_ids"] == 0
+    assert result["duplicate_finding_ids"] == 0
+
+
+def test_whitespace_only_id_is_not_counted():
+    report = {"findings": [{"finding_id": "   "}]}
+
+    result = audit_report_consistency(report)
+
+    assert result["findings_with_ids"] == 0
+    assert result["duplicate_finding_ids"] == 0

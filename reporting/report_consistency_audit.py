@@ -68,9 +68,10 @@ def audit_report_consistency(report: dict[str, Any]) -> dict[str, Any]:
             aggregate_types[f"{name.upper()}:UNCLASSIFIED"] = count
 
     ids = [
-        str(f.get("finding_id", "")).strip()
-        for f in findings
-        if str(f.get("finding_id", "")).strip()
+        finding_id.strip()
+        for finding in findings
+        if isinstance(finding_id := finding.get("finding_id"), str)
+        and finding_id.strip()
     ]
     duplicate_ids = len(ids) - len(set(ids))
 
