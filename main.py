@@ -490,6 +490,8 @@ def main() -> int:
         parser.error("Choose only one scan mode at a time.")
     if (args.fail_on_severity or args.fail_on_incomplete) and not any(modes):
         parser.error("Quality gates require a scan mode.")
+    if args.system_info and (args.fail_on_severity or args.fail_on_incomplete):
+        parser.error("Quality gates cannot be used with --system-info.")
 
     if args.system_info:
         return run_system_info()
