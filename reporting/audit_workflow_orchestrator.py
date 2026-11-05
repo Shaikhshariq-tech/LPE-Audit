@@ -80,7 +80,7 @@ def run_workflow(
         with source.open(encoding="utf-8") as handle:
             source_data = json.load(handle)
     except (OSError, json.JSONDecodeError) as exc:
-        raise WorkflowError(f"Source report is not valid JSON: {exc}") from exc
+        raise WorkflowError(f"Source report is not valid JSON ({type(exc).__name__}).") from exc
     if not isinstance(source_data, dict):
         raise WorkflowError("Source report JSON root must be an object.")
 
@@ -153,7 +153,7 @@ def main() -> int:
     try:
         result = run_workflow(args.source, args.reports_dir)
     except (WorkflowError, OSError, ValueError) as exc:
-        print(f"WORKFLOW FAILED: {exc}", file=sys.stderr)
+        print(f"WORKFLOW FAILED ({type(exc).__name__}): operation failed", file=sys.stderr)
         return 1
 
     print("\n=== LPE-Audit Workflow Summary ===")

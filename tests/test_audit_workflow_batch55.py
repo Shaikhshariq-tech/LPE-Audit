@@ -2,6 +2,8 @@ import json
 import subprocess
 import pytest
 
+from pathlib import Path
+
 from reporting.audit_workflow_orchestrator import (
     WorkflowError,
     build_steps,
@@ -63,3 +65,21 @@ def test_stops_after_failed_step_and_preserves_prior_output(tmp_path):
     with pytest.raises(WorkflowError, match="later steps were not run"):
         run_workflow(source, reports, runner=runner)
     assert len(calls) == 1
+
+
+def test_source_read_error_does_not_disclose_exception_message(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "source.json"
+    source.write_text("{}", encoding="utf-8")
+
+    def fail_open(*args, **kwargs):
+        raise OSError("SECRET_EXCEPTION_SENTINEL")
+
+    monkeypatch.setattr(Path, "open", fail_open)
+
+    with pytest.raises(WorkflowError) as caught:
+        run_workflow(source, tmp_path / "reports")
+
+    assert "SECRET_EXCEPTION_SENTINEL" not in str(caught.value)
+    assert "OSError" in str(caught.value)

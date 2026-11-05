@@ -67,7 +67,7 @@ def run_validated_workflow(
             EXPECTED_ARTIFACTS,
         )
     except Exception as exc:
-        print(f"VALIDATION ERROR: {exc}")
+        print(f"VALIDATION ERROR ({type(exc).__name__}): validation could not be completed")
         return 1
 
     status = report.get("status", "FAIL")

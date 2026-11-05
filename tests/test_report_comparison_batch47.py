@@ -1,8 +1,10 @@
 import json
+from pathlib import Path
 
 import pytest
 
 from reporting.report_comparison import (
+    _load_report,
     ReportComparisonError,
     compare_reports,
     write_comparison,
@@ -134,3 +136,21 @@ def test_comparison_json_is_written(tmp_path):
     stored = json.loads(output.read_text(encoding="utf-8"))
     assert stored["summary"]["resolved"] == 1
     assert stored["summary"] == result["summary"]
+
+
+def test_report_read_error_does_not_disclose_exception_message(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "report.json"
+    source.write_text("{}", encoding="utf-8")
+
+    def fail_open(*args, **kwargs):
+        raise OSError("SECRET_EXCEPTION_SENTINEL")
+
+    monkeypatch.setattr(Path, "open", fail_open)
+
+    with pytest.raises(ReportComparisonError) as caught:
+        _load_report(source)
+
+    assert "SECRET_EXCEPTION_SENTINEL" not in str(caught.value)
+    assert "OSError" in str(caught.value)

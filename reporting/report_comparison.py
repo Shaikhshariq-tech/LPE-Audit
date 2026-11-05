@@ -29,7 +29,7 @@ def _load_report(path):
             report = json.load(handle)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ReportComparisonError(
-            f"Cannot read valid JSON report {report_path}: {exc}"
+            f"Cannot read valid JSON report {report_path} ({type(exc).__name__})."
         ) from exc
 
     if not isinstance(report, dict):
@@ -210,6 +210,6 @@ def write_comparison(baseline_path, current_path, output_path):
         )
     except OSError as exc:
         raise ReportComparisonError(
-            f"Cannot write comparison report {output}: {exc}"
+            f"Cannot write comparison report {output} ({type(exc).__name__})."
         ) from exc
     return result

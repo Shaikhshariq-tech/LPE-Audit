@@ -23,9 +23,9 @@ def _load_report(path: str | Path) -> dict[str, Any]:
     try:
         data = json.loads(source.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise RiskRegressionError(f"Cannot read report {source}: {exc}") from exc
+        raise RiskRegressionError(f"Cannot read report {source} ({type(exc).__name__}).") from exc
     except json.JSONDecodeError as exc:
-        raise RiskRegressionError(f"Invalid JSON in {source}: {exc}") from exc
+        raise RiskRegressionError(f"Invalid JSON in {source} ({type(exc).__name__}).") from exc
 
     if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
         raise RiskRegressionError(f"{source}: expected a JSON object with a findings list")
@@ -394,7 +394,7 @@ def main(argv: list[str] | None = None) -> int:
             args.risk_increase_threshold,
         )
     except (RiskRegressionError, OSError) as exc:
-        print(f"Risk regression analysis failed: {exc}", file=sys.stderr)
+        print(f"Risk regression analysis failed ({type(exc).__name__}): operation failed", file=sys.stderr)
         return 2
     print(f"Risk regression analysis complete: {result['status']}")
     print(f"Regressions: {result['summary']['regression_count']}")

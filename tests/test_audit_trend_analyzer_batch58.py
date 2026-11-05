@@ -1,8 +1,10 @@
 import json
+from pathlib import Path
 
 import pytest
 
 from reporting.audit_trend_analyzer import (
+    _read_report,
     AuditTrendError,
     analyze_audit_trends,
     render_trend_markdown,
@@ -167,3 +169,19 @@ def test_refuses_existing_output(tmp_path):
             result, existing, tmp_path / "out.md", [first, second]
         )
     assert existing.read_text(encoding="utf-8") == "keep"
+
+
+def test_read_error_does_not_disclose_exception_message(tmp_path, monkeypatch):
+    source = tmp_path / "report.json"
+    source.write_text("{}", encoding="utf-8")
+
+    def fail_read(*args, **kwargs):
+        raise OSError("SECRET_EXCEPTION_SENTINEL")
+
+    monkeypatch.setattr(Path, "read_text", fail_read)
+
+    with pytest.raises(AuditTrendError) as caught:
+        _read_report(source)
+
+    assert "SECRET_EXCEPTION_SENTINEL" not in str(caught.value)
+    assert "OSError" in str(caught.value)

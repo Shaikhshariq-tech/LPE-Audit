@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from reporting.risk_drift_explainer import (
+    _load_report,
     RiskDriftError,
     analyze_files,
     explain_risk_drift,
@@ -144,3 +145,21 @@ def test_empty_reports():
     result = explain_risk_drift(report(), report())
     assert result["summary"]["persistent_findings"] == 0
     assert result["status"] == "NO_PERSISTENT_FINDING_DRIFT"
+
+
+def test_report_read_error_does_not_disclose_exception_message(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "report.json"
+    source.write_text("{}", encoding="utf-8")
+
+    def fail_read(*args, **kwargs):
+        raise OSError("SECRET_EXCEPTION_SENTINEL")
+
+    monkeypatch.setattr(Path, "read_text", fail_read)
+
+    with pytest.raises(RiskDriftError) as caught:
+        _load_report(source)
+
+    assert "SECRET_EXCEPTION_SENTINEL" not in str(caught.value)
+    assert "OSError" in str(caught.value)

@@ -24,9 +24,9 @@ def _read_report(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise AuditTrendError(f"Cannot read report {path}: {exc}") from exc
+        raise AuditTrendError(f"Cannot read report {path} ({type(exc).__name__}).") from exc
     except json.JSONDecodeError as exc:
-        raise AuditTrendError(f"Invalid JSON in {path}: {exc}") from exc
+        raise AuditTrendError(f"Invalid JSON in {path} ({type(exc).__name__}).") from exc
 
     if not isinstance(data, dict):
         raise AuditTrendError(f"Report must contain a JSON object: {path}")
@@ -375,7 +375,7 @@ def write_trend_outputs(
     except OSError as exc:
         for path in created:
             path.unlink(missing_ok=True)
-        raise AuditTrendError(f"Could not write trend outputs: {exc}") from exc
+        raise AuditTrendError(f"Could not write trend outputs ({type(exc).__name__}).") from exc
     finally:
         json_tmp.unlink(missing_ok=True)
         md_tmp.unlink(missing_ok=True)

@@ -77,7 +77,7 @@ def validate_workflow_outputs(output_dir, expected_names):
                 with path.open("r", encoding="utf-8") as handle:
                     json.load(handle)
             except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-                item["error"] = f"INVALID_JSON: {exc}"
+                item["error"] = f"INVALID_JSON: {type(exc).__name__}"
                 errors.append({
                     "name": str(relative),
                     "type": "INVALID_JSON",

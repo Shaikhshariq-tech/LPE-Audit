@@ -101,3 +101,34 @@ def test_expected_artifact_list_is_complete_and_unique():
         name.endswith((".json", ".md"))
         for name in workflow.EXPECTED_ARTIFACTS
     )
+
+
+def test_validation_exception_message_is_not_disclosed(
+    tmp_path, monkeypatch, capsys
+):
+    output = tmp_path / "reports" / "batch57-run"
+    create_artifacts(output)
+
+    monkeypatch.setattr(
+        workflow.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=0),
+    )
+
+    def fail_validation(*args, **kwargs):
+        raise RuntimeError("SECRET_EXCEPTION_SENTINEL")
+
+    monkeypatch.setattr(
+        workflow,
+        "validate_workflow_outputs",
+        fail_validation,
+    )
+
+    result = workflow.run_validated_workflow(
+        output, project_root=tmp_path
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert "SECRET_EXCEPTION_SENTINEL" not in captured.out
+    assert "RuntimeError" in captured.out

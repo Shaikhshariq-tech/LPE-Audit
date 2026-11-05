@@ -21,9 +21,9 @@ def _load_report(path: str | Path) -> dict[str, Any]:
     try:
         data = json.loads(source.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise RiskDriftError(f"Cannot read report {source}: {exc}") from exc
+        raise RiskDriftError(f"Cannot read report {source} ({type(exc).__name__}).") from exc
     except json.JSONDecodeError as exc:
-        raise RiskDriftError(f"Invalid JSON in {source}: {exc}") from exc
+        raise RiskDriftError(f"Invalid JSON in {source} ({type(exc).__name__}).") from exc
 
     if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
         raise RiskDriftError(f"{source}: expected an object with a findings list")
@@ -285,7 +285,7 @@ def analyze_files(
         with md_target.open("x", encoding="utf-8") as stream:
             stream.write(markdown)
     except OSError as exc:
-        raise RiskDriftError(f"Could not write output files: {exc}") from exc
+        raise RiskDriftError(f"Could not write output files ({type(exc).__name__}).") from exc
     return result
 
 
@@ -305,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
             args.baseline_label, args.current_label, args.threshold,
         )
     except (RiskDriftError, OSError) as exc:
-        parser.exit(2, f"ERROR: {exc}\n")
+        parser.exit(2, f"ERROR ({type(exc).__name__}): operation failed\n")
     print(f"Risk drift analysis complete: {result['status']}")
     print(f"Persistent findings: {result['summary']['persistent_findings']}")
     print(f"Score increases: {result['summary']['score_increases']}")

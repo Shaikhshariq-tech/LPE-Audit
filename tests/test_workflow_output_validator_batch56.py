@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -87,3 +88,21 @@ def test_reports_artifact_sizes(tmp_path):
 
     assert result["artifacts"][0]["size_bytes"] == len(b"Audit report")
     assert result["artifacts"][0]["valid"] is True
+
+
+def test_invalid_json_error_does_not_disclose_exception_message(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "report.json"
+    source.write_text('{"findings": []}', encoding="utf-8")
+
+    def fail_open(*args, **kwargs):
+        raise OSError("SECRET_EXCEPTION_SENTINEL")
+
+    monkeypatch.setattr(Path, "open", fail_open)
+
+    result = validate_workflow_outputs(tmp_path, ["report.json"])
+
+    assert result["status"] == "FAIL"
+    assert "INVALID_JSON: OSError" in str(result)
+    assert "SECRET_EXCEPTION_SENTINEL" not in str(result)
