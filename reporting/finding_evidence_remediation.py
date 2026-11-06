@@ -165,7 +165,7 @@ def create_evidence_remediation_files(
     try:
         report = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise EvidenceRemediationError(f"Cannot read valid source JSON: {exc}") from exc
+        raise EvidenceRemediationError(f"Cannot read valid source JSON ({type(exc).__name__}).") from exc
 
     plan = build_evidence_remediation_plan(report)
     for output in (json_path, md_path):

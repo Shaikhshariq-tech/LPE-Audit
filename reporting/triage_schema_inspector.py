@@ -16,9 +16,9 @@ def _load(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise SchemaInspectionError(f"Cannot read {path}: {exc}") from exc
+        raise SchemaInspectionError(f"Cannot read {path} (OSError).") from exc
     except json.JSONDecodeError as exc:
-        raise SchemaInspectionError(f"Invalid JSON in {path}: {exc}") from exc
+        raise SchemaInspectionError(f"Invalid JSON in {path} (JSONDecodeError).") from exc
 
 
 def _identifier(record: dict[str, Any]) -> str:

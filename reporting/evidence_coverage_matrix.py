@@ -26,9 +26,9 @@ def _read_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise EvidenceCoverageError(f"Cannot read input {path}: {exc}") from exc
+        raise EvidenceCoverageError(f"Cannot read input {path} (OSError).") from exc
     except json.JSONDecodeError as exc:
-        raise EvidenceCoverageError(f"Invalid JSON in {path}: {exc}") from exc
+        raise EvidenceCoverageError(f"Invalid JSON in {path} (JSONDecodeError).") from exc
 
 
 def _text(value: Any) -> str:

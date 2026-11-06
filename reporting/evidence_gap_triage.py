@@ -16,9 +16,9 @@ def _load_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise EvidenceGapTriageError(f"Cannot read input: {exc}") from exc
+        raise EvidenceGapTriageError("Cannot read input (OSError).") from exc
     except json.JSONDecodeError as exc:
-        raise EvidenceGapTriageError(f"Input is not valid JSON: {exc}") from exc
+        raise EvidenceGapTriageError("Input is not valid JSON (JSONDecodeError).") from exc
 
 
 def _normalise_text(value: Any) -> str:

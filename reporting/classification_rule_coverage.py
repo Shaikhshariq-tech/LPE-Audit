@@ -36,9 +36,9 @@ def _load(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise RuleCoverageError(f"Cannot read {path}: {exc}") from exc
+        raise RuleCoverageError(f"Cannot read {path} (OSError).") from exc
     except json.JSONDecodeError as exc:
-        raise RuleCoverageError(f"Invalid JSON in {path}: {exc}") from exc
+        raise RuleCoverageError(f"Invalid JSON in {path} (JSONDecodeError).") from exc
 
 
 def _descriptive_fields(record: dict[str, Any]) -> list[tuple[str, str]]:
@@ -104,7 +104,7 @@ def build_coverage(matrix: Any, triage: Any) -> dict[str, Any]:
     try:
         triage_items = _triage_records(triage)
     except ClassificationSuggestionError as exc:
-        raise RuleCoverageError(str(exc)) from exc
+        raise RuleCoverageError("Classification suggestions failed (ClassificationSuggestionError).") from exc
 
     triage_by_id = {
         _string(item.get("gap_id") or item.get("issue_id")): item

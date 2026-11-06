@@ -17,7 +17,7 @@ def _load_json(path: Path, label: str) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise DashboardError(f"Cannot read {label} JSON: {exc}") from exc
+        raise DashboardError(f"Cannot read {label} JSON ({type(exc).__name__}).") from exc
     if not isinstance(data, dict):
         raise DashboardError(f"{label} JSON root must be an object.")
     return data

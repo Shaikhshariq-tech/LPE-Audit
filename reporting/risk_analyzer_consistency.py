@@ -19,7 +19,7 @@ def _read_json(path: str | Path) -> dict[str, Any]:
         value = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise AnalyzerConsistencyError(
-            f"Cannot read JSON file {source}: {exc}"
+            f"Cannot read JSON file {source} ({type(exc).__name__})."
         ) from exc
     if not isinstance(value, dict):
         raise AnalyzerConsistencyError(f"Expected a JSON object: {source}")

@@ -20,7 +20,7 @@ def _read_json(path: str | Path) -> dict[str, Any]:
     try:
         value = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise RiskEvidenceIntegrityError(f"Cannot read {path}: {exc}") from exc
+        raise RiskEvidenceIntegrityError(f"Cannot read {path} ({type(exc).__name__}).") from exc
     if not isinstance(value, dict):
         raise RiskEvidenceIntegrityError(f"Expected JSON object: {path}")
     return value

@@ -19,7 +19,7 @@ def _load_report(path: str | Path) -> dict[str, Any]:
     try:
         data = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise RiskCorrelationError(f"Cannot read report {source}: {exc}") from exc
+        raise RiskCorrelationError(f"Cannot read report {source} ({type(exc).__name__}).") from exc
     if not isinstance(data, dict):
         raise RiskCorrelationError(f"Report must be a JSON object: {source}")
     if not isinstance(data.get("findings"), list):

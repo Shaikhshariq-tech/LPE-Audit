@@ -26,9 +26,9 @@ def _load_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise ClassificationQualityError(f"Cannot read input: {exc}") from exc
+        raise ClassificationQualityError("Cannot read input (OSError).") from exc
     except json.JSONDecodeError as exc:
-        raise ClassificationQualityError(f"Input is not valid JSON: {exc}") from exc
+        raise ClassificationQualityError("Input is not valid JSON (JSONDecodeError).") from exc
 
 
 def _text(value: Any) -> str:
