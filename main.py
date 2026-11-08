@@ -3,6 +3,7 @@ import argparse
 from pathlib import Path
 
 from core.finding import Finding
+from core.text_safety import escape_terminal_text
 from core.scan_coordinator import run_scanner
 from core.quality_gate import evaluate_quality_gate
 from core.analyzer import analyze_findings
@@ -48,23 +49,29 @@ def print_system_info(info: dict) -> None:
         ("Linux", "is_linux"),
         ("Shell", "shell"),
     ]:
-        print(f"{label:19}: {info.get(key, 'unknown')}")
+        value = escape_terminal_text(str(info.get(key, "unknown")))
+        print(f"{label:19}: {value}")
     if info.get("distro_name"):
-        print(f"{'Distribution':19}: {info['distro_name']}")
+        distro_name = escape_terminal_text(str(info["distro_name"]))
+        print(f"{'Distribution':19}: {distro_name}")
     for note in info.get("notes", []):
-        print(f"NOTE: {note}")
+        safe_note = escape_terminal_text(str(note))
+        print(f"NOTE: {safe_note}")
     print()
 
 
 def print_findings(findings: list) -> None:
     print(f"Findings generated: {len(findings)}")
     for finding in findings:
+        title = escape_terminal_text(str(finding.title))
+        severity = escape_terminal_text(str(finding.severity))
         print(
-            f"[{finding.severity}] {finding.title} "
+            f"[{severity}] {title} "
             f"(risk={finding.risk_score}/100)"
         )
         if finding.affected_path:
-            print(f"    Path: {finding.affected_path}")
+            path = escape_terminal_text(str(finding.affected_path))
+            print(f"    Path: {path}")
 
 
 def write_reports(

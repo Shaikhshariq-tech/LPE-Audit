@@ -3,10 +3,15 @@
 from pathlib import Path
 from typing import Any
 
+from core.text_safety import sanitize_terminal_data
+
+
 def _line(char: str = "-", length: int = 72) -> str:
     return char * length
 
 def build_text_report(report: dict[str, Any]) -> str:
+    """Build a human-readable report with terminal-safe field values."""
+    report = sanitize_terminal_data(report)
     host = report.get("system_info", {})
     findings = report.get("findings", [])
     summary = report.get("summary", {})
