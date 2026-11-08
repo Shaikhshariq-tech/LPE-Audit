@@ -167,3 +167,45 @@ def test_print_system_info_escapes_dynamic_values(capsys):
     assert "\r" not in output
     assert "\t" not in output
     assert "\x07" not in output
+
+
+def test_selected_scan_escapes_error_type_and_report_paths(
+    monkeypatch, capsys, tmp_path
+):
+    import main as app
+
+    class Outcome:
+        succeeded = False
+        findings = []
+        warning = "Scanner failed."
+        duration_seconds = 0.01
+        error_type = "PermissionError\x1b[2J\nFORGED"
+
+    monkeypatch.setattr(
+        app, "collect_system_info",
+        lambda: {"is_linux": True, "hostname": "test-host"},
+    )
+    monkeypatch.setattr(app, "run_scanner", lambda name, scanner: Outcome())
+    monkeypatch.setattr(app, "analyze_findings", lambda findings: findings)
+
+    unsafe_json_path = tmp_path / "report\x1b[2J\nFORGED.json"
+    unsafe_text_path = tmp_path / "report\x07text.txt"
+
+    monkeypatch.setattr(
+        app, "write_reports",
+        lambda *args, **kwargs: (unsafe_json_path, unsafe_text_path),
+    )
+
+    result = app.run_selected_scan(
+        "test_scanner", lambda: [], str(tmp_path)
+    )
+    output = capsys.readouterr().out
+
+    assert result == 0
+    assert "PermissionError\\x1b[2J\\x0aFORGED" in output
+    assert "report\\x1b[2J\\x0aFORGED.json" in output
+    assert "report\\x07text.txt" in output
+
+    assert "\x1b" not in output
+    assert "\x07" not in output
+    assert "\nFORGED" not in output

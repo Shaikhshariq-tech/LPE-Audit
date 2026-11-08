@@ -118,7 +118,7 @@ def run_selected_scan(
     """Run one scanner through the shared fault-tolerant coordinator."""
     print_banner()
     info = collect_system_info()
-    print(f"[*] Running {name} scanner...")
+    print(f"[*] Running {escape_terminal_text(str(name))} scanner...")
 
     warnings = []
     if not info.get("is_linux"):
@@ -141,7 +141,7 @@ def run_selected_scan(
         findings = analyze_findings(outcome.findings)
         print_findings(findings)
     else:
-        print(f"    Scanner failed: {getattr(outcome, "error_type", "") or 'UnknownError'}")
+        print(f"    Scanner failed: {escape_terminal_text(str(getattr(outcome, 'error_type', '') or 'UnknownError'))}")
         warnings.append(outcome.warning)
         findings = analyze_findings(outcome.findings)
 
@@ -168,8 +168,8 @@ def run_selected_scan(
         output_directory,
         f"lpe_audit_{name}",
     )
-    print(f"JSON report : {json_path}")
-    print(f"Text report : {text_path}")
+    print(f"JSON report : {escape_terminal_text(str(json_path))}")
+    print(f"Text report : {escape_terminal_text(str(text_path))}")
     return gate["exit_code"]
 
 
@@ -191,7 +191,7 @@ def run_full_scan(
     scan_execution = []
 
     for module, label, scanner in SCANNERS:
-        print(f"[*] Running {label} scanner...")
+        print(f"[*] Running {escape_terminal_text(str(label))} scanner...")
         outcome = run_scanner(module, scanner)
         total_scanner_seconds += outcome.duration_seconds
         findings.extend(outcome.findings)
@@ -207,7 +207,7 @@ def run_full_scan(
         print(f"    Duration: {outcome.duration_seconds:.4f}s")
 
         if not outcome.succeeded:
-            print(f"    Scanner failed: {getattr(outcome, "error_type", "") or 'UnknownError'}")
+            print(f"    Scanner failed: {escape_terminal_text(str(getattr(outcome, 'error_type', '') or 'UnknownError'))}")
             warnings.append(
                 f"{label} scanner failed; other scans continued."
             )
@@ -240,8 +240,8 @@ def run_full_scan(
     print(f"Modules                 : {', '.join(modules)}")
     print(f"Total findings          : {len(findings)}")
     print(f"Total scanner time      : {total_scanner_seconds:.4f}s")
-    print(f"JSON report             : {json_path}")
-    print(f"Text report             : {text_path}")
+    print(f"JSON report             : {escape_terminal_text(str(json_path))}")
+    print(f"Text report             : {escape_terminal_text(str(text_path))}")
     return gate["exit_code"]
 
 
@@ -376,7 +376,7 @@ def main() -> int:
         print(f"Resolved findings  : {result['summary']['resolved']}")
         print(f"Persistent findings: {result['summary']['persistent']}")
         print(f"Severity changes   : {result['summary']['severity_changed']}")
-        print(f"Comparison JSON    : {args.comparison_output}")
+        print(f"Comparison JSON    : {escape_terminal_text(str(args.comparison_output))}")
         return 0
 
     if args.audit_report_quality:
@@ -395,8 +395,8 @@ def main() -> int:
         print(f"Source findings : {result['source_findings']}")
         print(f"Issues flagged  : {result['issue_count']}")
         for issue_type, count in result["issue_type_counts"].items():
-            print(f"  {issue_type}: {count}")
-        print(f"JSON report     : {output_path}")
+            print(f"  {escape_terminal_text(str(issue_type))}: {count}")
+        print(f"JSON report     : {escape_terminal_text(str(output_path))}")
         print("Source changes  : none (read-only audit)")
         return 0
 
@@ -417,8 +417,8 @@ def main() -> int:
         print(f"Duplicate IDs   : {result['duplicate_finding_ids']}")
         print(f"Issues flagged  : {result['issue_count']}")
         for name, summary in result["subaudit_summaries"].items():
-            print(f"  {name}: {summary['issue_count']} issue(s)")
-        print(f"JSON report     : {output_path}")
+            print(f"  {escape_terminal_text(str(name))}: {summary['issue_count']} issue(s)")
+        print(f"JSON report     : {escape_terminal_text(str(output_path))}")
         print("Source changes  : none (read-only audit)")
         return 0
 
@@ -438,8 +438,8 @@ def main() -> int:
         print(f"Source findings : {result['source_findings']}")
         print(f"Issues flagged  : {result['issue_count']}")
         for kind, count in result["issue_type_counts"].items():
-            print(f"  {kind}: {count}")
-        print(f"JSON report     : {output_path}")
+            print(f"  {escape_terminal_text(str(kind))}: {count}")
+        print(f"JSON report     : {escape_terminal_text(str(output_path))}")
         print("Source changes  : none (read-only audit)")
         return 0
 
@@ -459,8 +459,8 @@ def main() -> int:
         print(f"Source findings : {result['source_findings']}")
         print(f"Issues flagged  : {result['issue_count']}")
         for issue_type, count in result["issue_type_counts"].items():
-            print(f"  {issue_type}: {count}")
-        print(f"JSON report     : {output_path}")
+            print(f"  {escape_terminal_text(str(issue_type))}: {count}")
+        print(f"JSON report     : {escape_terminal_text(str(output_path))}")
         print("Source changes  : none (read-only audit)")
         return 0
 
@@ -484,8 +484,8 @@ def main() -> int:
         print(f"Medium           : {plan['summary']['medium']}")
         print(f"Low              : {plan['summary']['low']}")
         print(f"Info             : {plan['summary']['info']}")
-        print(f"JSON plan        : {json_path}")
-        print(f"Markdown plan    : {markdown_path}")
+        print(f"JSON plan        : {escape_terminal_text(str(json_path))}")
+        print(f"Markdown plan    : {escape_terminal_text(str(markdown_path))}")
         print("System changes   : none (read-only recommendations)")
         return 0
 
