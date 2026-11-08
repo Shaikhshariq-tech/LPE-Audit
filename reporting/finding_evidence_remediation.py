@@ -156,7 +156,7 @@ def create_evidence_remediation_files(
     md_path = Path(markdown_output).resolve()
 
     if not source.is_file():
-        raise EvidenceRemediationError(f"Source report does not exist: {source}")
+        raise EvidenceRemediationError("Source report does not exist.")
     if source in (json_path, md_path):
         raise EvidenceRemediationError("Output cannot overwrite the source report.")
     if json_path == md_path:
@@ -171,7 +171,7 @@ def create_evidence_remediation_files(
     for output in (json_path, md_path):
         output.parent.mkdir(parents=True, exist_ok=True)
         if output.exists():
-            raise EvidenceRemediationError(f"Refusing to overwrite existing output: {output}")
+            raise EvidenceRemediationError("Refusing to overwrite existing output.")
 
     # Stage both outputs before publishing either one.
     staged = []
@@ -182,12 +182,12 @@ def create_evidence_remediation_files(
         ):
             temp = output.with_name(output.name + ".batch53-tmp")
             if temp.exists():
-                raise EvidenceRemediationError(f"Temporary output already exists: {temp}")
+                raise EvidenceRemediationError("Temporary output already exists.")
             temp.write_text(content, encoding="utf-8")
             staged.append((temp, output))
         for temp, output in staged:
             if output.exists():
-                raise EvidenceRemediationError(f"Refusing to overwrite existing output: {output}")
+                raise EvidenceRemediationError("Refusing to overwrite existing output.")
         for temp, output in staged:
             temp.replace(output)
     except Exception:

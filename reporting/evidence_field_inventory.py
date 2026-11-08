@@ -17,9 +17,9 @@ def _load(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise EvidenceInventoryError(f"Cannot read {path} (OSError).") from exc
+        raise EvidenceInventoryError("Cannot read input (OSError).") from exc
     except json.JSONDecodeError as exc:
-        raise EvidenceInventoryError(f"Invalid JSON in {path} (JSONDecodeError).") from exc
+        raise EvidenceInventoryError("Invalid input JSON (JSONDecodeError).") from exc
 
 
 def _text_preview(value: Any, limit: int = 180) -> str:

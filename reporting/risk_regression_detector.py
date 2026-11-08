@@ -23,36 +23,36 @@ def _load_report(path: str | Path) -> dict[str, Any]:
     try:
         data = json.loads(source.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise RiskRegressionError(f"Cannot read report {source} ({type(exc).__name__}).") from exc
+        raise RiskRegressionError(f"Cannot read report ({type(exc).__name__}).") from exc
     except json.JSONDecodeError as exc:
-        raise RiskRegressionError(f"Invalid JSON in {source} ({type(exc).__name__}).") from exc
+        raise RiskRegressionError(f"Invalid JSON ({type(exc).__name__}).") from exc
 
     if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
-        raise RiskRegressionError(f"{source}: expected a JSON object with a findings list")
+        raise RiskRegressionError("Report must be a JSON object with a findings list.")
 
     for index, finding in enumerate(data["findings"]):
         if not isinstance(finding, dict):
-            raise RiskRegressionError(f"{source}: finding {index} must be an object")
+            raise RiskRegressionError(f"Finding {index} must be an object")
         for field in ("category", "title", "affected_path", "scanner"):
             if not isinstance(finding.get(field, ""), str):
                 raise RiskRegressionError(
-                    f"{source}: finding {index} has invalid {field}"
+                    f"Finding {index} has an invalid field"
                 )
         score = finding.get("risk_score")
         if score is None:
             score = finding.get("risk", 0)
         if isinstance(score, bool) or not isinstance(score, (int, float)):
             raise RiskRegressionError(
-                f"{source}: finding {index} has a non-numeric risk score"
+                f"Finding {index} has a non-numeric risk score"
             )
         if not 0 <= score <= 100:
             raise RiskRegressionError(
-                f"{source}: finding {index} risk score must be between 0 and 100"
+                f"Finding {index} risk score must be between 0 and 100"
             )
         severity = str(finding.get("severity", "INFO")).upper()
         if severity not in SEVERITY_ORDER:
             raise RiskRegressionError(
-                f"{source}: finding {index} has unknown severity {severity!r}"
+                f"Finding {index} has unknown severity"
             )
     return data
 
@@ -74,7 +74,7 @@ def _index_findings(report: dict[str, Any], label: str) -> dict[tuple, dict]:
         key = _identity(finding)
         if key in indexed:
             raise RiskRegressionError(
-                f"{label}: duplicate finding identity {key!r}; comparison is ambiguous"
+                "duplicate finding identity; comparison is ambiguous."
             )
         indexed[key] = finding
     return indexed
@@ -109,35 +109,35 @@ def analyze_risk_regressions(
 
     for label, report in ((baseline_label, baseline), (current_label, current)):
         if not isinstance(report, dict) or not isinstance(report.get("findings"), list):
-            raise RiskRegressionError(f"{label}: expected a report with a findings list")
+            raise RiskRegressionError("Expected a report with a findings list.")
 
         # Validate at the public analysis boundary too, because callers may
         # supply report dictionaries directly instead of using _load_report().
         for index, finding in enumerate(report["findings"]):
             if not isinstance(finding, dict):
                 raise RiskRegressionError(
-                    f"{label}: finding {index} must be an object"
+                    f"Finding {index} must be an object"
                 )
             for field in ("category", "title", "affected_path", "scanner"):
                 if not isinstance(finding.get(field, ""), str):
                     raise RiskRegressionError(
-                        f"{label}: finding {index} has invalid {field}"
+                        f"Finding {index} has an invalid field"
                     )
             score = finding.get("risk_score")
             if score is None:
                 score = finding.get("risk", 0)
             if isinstance(score, bool) or not isinstance(score, (int, float)):
                 raise RiskRegressionError(
-                    f"{label}: finding {index} has a non-numeric risk score"
+                    f"Finding {index} has a non-numeric risk score"
                 )
             if not 0 <= score <= 100:
                 raise RiskRegressionError(
-                    f"{label}: finding {index} risk score must be between 0 and 100"
+                    f"Finding {index} risk score must be between 0 and 100"
                 )
             severity = str(finding.get("severity", "INFO")).upper()
             if severity not in SEVERITY_ORDER:
                 raise RiskRegressionError(
-                    f"{label}: finding {index} has unknown severity {severity!r}"
+                    f"Finding {index} has unknown severity"
                 )
 
     old = _index_findings(baseline, baseline_label)
@@ -356,12 +356,12 @@ def analyze_files(
             target.parent.mkdir(parents=True, exist_ok=True)
             temp = target.with_name(target.name + ".batch59-tmp")
             if temp.exists():
-                raise RiskRegressionError(f"Temporary output already exists: {temp}")
+                raise RiskRegressionError("Temporary output already exists.")
             temp.write_text(content, encoding="utf-8")
             staged.append((temp, target))
         for temp, target in staged:
             if target.exists():
-                raise RiskRegressionError(f"Output appeared during write: {target}")
+                raise RiskRegressionError("Output appeared during write.")
         for temp, target in staged:
             temp.replace(target)
     except Exception:

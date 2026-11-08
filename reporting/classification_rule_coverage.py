@@ -36,9 +36,9 @@ def _load(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise RuleCoverageError(f"Cannot read {path} (OSError).") from exc
+        raise RuleCoverageError("Cannot read input (OSError).") from exc
     except json.JSONDecodeError as exc:
-        raise RuleCoverageError(f"Invalid JSON in {path} (JSONDecodeError).") from exc
+        raise RuleCoverageError("Invalid input JSON (JSONDecodeError).") from exc
 
 
 def _descriptive_fields(record: dict[str, Any]) -> list[tuple[str, str]]:

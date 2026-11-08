@@ -20,9 +20,9 @@ def _read_json(path: str | Path) -> dict[str, Any]:
     try:
         value = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise RiskEvidenceIntegrityError(f"Cannot read {path} ({type(exc).__name__}).") from exc
+        raise RiskEvidenceIntegrityError(f"Cannot read JSON input ({type(exc).__name__}).") from exc
     if not isinstance(value, dict):
-        raise RiskEvidenceIntegrityError(f"Expected JSON object: {path}")
+        raise RiskEvidenceIntegrityError("Expected JSON object.")
     return value
 
 
@@ -72,23 +72,23 @@ def audit_evidence_integrity(
     for label, report in zip(labels, risk_reports):
         if not isinstance(report, dict) or not isinstance(report.get("findings"), list):
             raise RiskEvidenceIntegrityError(
-                f"{label}: report must contain a findings list"
+                "Report must contain a findings list."
             )
         index: dict[tuple[str, ...], dict[str, Any]] = {}
         for position, finding in enumerate(report["findings"]):
             if not isinstance(finding, dict):
                 raise RiskEvidenceIntegrityError(
-                    f"{label}: finding {position} must be an object"
+                    f"Finding {position} must be an object"
                 )
             key = _identity(finding)
             if key in index:
                 raise RiskEvidenceIntegrityError(
-                    f"{label}: duplicate stable finding identity"
+                    "duplicate stable finding identity."
                 )
             score = finding.get("risk_score", finding.get("score"))
             if not _valid_score(score):
                 raise RiskEvidenceIntegrityError(
-                    f"{label}: invalid score for finding {position}"
+                    f"Invalid score for finding {position}"
                 )
             index[key] = finding
         report_indexes[label] = index
@@ -120,7 +120,7 @@ def audit_evidence_integrity(
                 raise RiskEvidenceIntegrityError("Observation snapshot label must be a non-empty string")
             if label in seen_labels:
                 raise RiskEvidenceIntegrityError(
-                    f"Duplicate observation for snapshot {label!r}"
+                    "Duplicate observation for a snapshot."
                 )
             if not _valid_score(score):
                 raise RiskEvidenceIntegrityError("Invalid correlation observation score")

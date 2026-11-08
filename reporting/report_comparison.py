@@ -29,31 +29,31 @@ def _load_report(path):
             report = json.load(handle)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ReportComparisonError(
-            f"Cannot read valid JSON report {report_path} ({type(exc).__name__})."
+            f"Cannot read valid JSON report ({type(exc).__name__})."
         ) from exc
 
     if not isinstance(report, dict):
-        raise ReportComparisonError(f"{report_path}: report must be a JSON object")
+        raise ReportComparisonError("Report must be a JSON object.")
 
     findings = report.get("findings")
     if not isinstance(findings, list):
         raise ReportComparisonError(
-            f"{report_path}: 'findings' must be a JSON array"
+            "Report findings must be a JSON array."
         )
 
     for index, finding in enumerate(findings):
         if not isinstance(finding, dict):
             raise ReportComparisonError(
-                f"{report_path}: finding at index {index} must be an object"
+                f"Finding at index {index} must be an object"
             )
         if not isinstance(finding.get("title"), str) or not finding["title"].strip():
             raise ReportComparisonError(
-                f"{report_path}: finding at index {index} has no valid title"
+                f"Finding at index {index} has no valid title"
             )
         severity = finding.get("severity")
         if not isinstance(severity, str) or severity.upper() not in SEVERITY_ORDER:
             raise ReportComparisonError(
-                f"{report_path}: finding at index {index} has invalid severity"
+                f"Finding at index {index} has invalid severity"
             )
 
     return report
@@ -82,8 +82,7 @@ def _index_findings(findings, label):
         key = _identity(finding)
         if key in indexed:
             raise ReportComparisonError(
-                f"{label} report contains duplicate finding identity: "
-                f"{finding.get('title', '<untitled>')!r}. "
+                "Report contains duplicate finding identity. "
                 "Resolve duplicate findings before comparing."
             )
         indexed[key] = finding
@@ -210,6 +209,6 @@ def write_comparison(baseline_path, current_path, output_path):
         )
     except OSError as exc:
         raise ReportComparisonError(
-            f"Cannot write comparison report {output} ({type(exc).__name__})."
+            f"Cannot write comparison report ({type(exc).__name__})."
         ) from exc
     return result

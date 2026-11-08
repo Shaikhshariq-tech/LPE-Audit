@@ -19,10 +19,10 @@ def _read_json(path: str | Path) -> dict[str, Any]:
         value = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise AnalyzerConsistencyError(
-            f"Cannot read JSON file {source} ({type(exc).__name__})."
+            f"Cannot read JSON file ({type(exc).__name__})."
         ) from exc
     if not isinstance(value, dict):
-        raise AnalyzerConsistencyError(f"Expected a JSON object: {source}")
+        raise AnalyzerConsistencyError("Expected a JSON object.")
     return value
 
 
@@ -39,22 +39,22 @@ def _identity(raw: dict[str, Any]) -> tuple[str, str, str, str]:
 def _findings(report: dict[str, Any], label: str) -> dict[tuple, dict]:
     items = report.get("findings")
     if not isinstance(items, list):
-        raise AnalyzerConsistencyError(f"{label}: missing findings list")
+        raise AnalyzerConsistencyError("Missing findings list.")
     result = {}
     for i, item in enumerate(items):
         if not isinstance(item, dict):
-            raise AnalyzerConsistencyError(f"{label}: finding {i} is not an object")
+            raise AnalyzerConsistencyError(f"Finding {i} is not an object")
         key = _identity(item)
         if key in result:
-            raise AnalyzerConsistencyError(f"{label}: duplicate finding identity")
+            raise AnalyzerConsistencyError("duplicate finding identity.")
         score = item.get("risk_score", item.get("score"))
         if isinstance(score, bool) or not isinstance(score, (int, float)):
-            raise AnalyzerConsistencyError(f"{label}: invalid risk score at finding {i}")
+            raise AnalyzerConsistencyError(f"Invalid risk score at finding {i}")
         if not math.isfinite(score) or not 0 <= score <= 100:
-            raise AnalyzerConsistencyError(f"{label}: risk score outside 0..100")
+            raise AnalyzerConsistencyError("Invalid risk score: value outside 0..100.")
         severity = item.get("severity", "INFO")
         if not isinstance(severity, str) or not severity.strip():
-            raise AnalyzerConsistencyError(f"{label}: invalid severity at finding {i}")
+            raise AnalyzerConsistencyError(f"Invalid severity at finding {i}")
         result[key] = {
             "risk_score": float(score),
             "severity": severity.strip().upper(),

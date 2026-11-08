@@ -16,9 +16,9 @@ def _load(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise SchemaInspectionError(f"Cannot read {path} (OSError).") from exc
+        raise SchemaInspectionError("Cannot read input (OSError).") from exc
     except json.JSONDecodeError as exc:
-        raise SchemaInspectionError(f"Invalid JSON in {path} (JSONDecodeError).") from exc
+        raise SchemaInspectionError("Invalid input JSON (JSONDecodeError).") from exc
 
 
 def _identifier(record: dict[str, Any]) -> str:
@@ -63,7 +63,7 @@ def discover_records(data: Any) -> list[dict[str, Any]]:
 def inspect_report(data: Any, label: str) -> dict[str, Any]:
     if not isinstance(data, (dict, list)):
         raise SchemaInspectionError(
-            f"{label} root must be a JSON object or array."
+            "Report root must be a JSON object or array."
         )
 
     records = discover_records(data)

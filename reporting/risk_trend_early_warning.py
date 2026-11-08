@@ -19,31 +19,31 @@ def _load_report(path: str | Path) -> dict[str, Any]:
         data = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise RiskTrendWarningError(
-            f"Unable to read valid JSON report: {source}"
+            "Unable to read valid JSON report."
         ) from exc
 
     if not isinstance(data, dict):
-        raise RiskTrendWarningError(f"Report must be a JSON object: {source}")
+        raise RiskTrendWarningError("Report must be a JSON object.")
 
     findings = data.get("findings", [])
     if not isinstance(findings, list):
         raise RiskTrendWarningError(
-            f"Report findings must be a list: {source}"
+            "Report findings must be a list."
         )
 
     for index, finding in enumerate(findings):
         if not isinstance(finding, dict):
             raise RiskTrendWarningError(
-                f"Finding {index} must be a JSON object: {source}"
+                f"Finding {index} must be a JSON object"
             )
         score = finding.get("risk_score", finding.get("risk", 0))
         if isinstance(score, bool) or not isinstance(score, (int, float)):
             raise RiskTrendWarningError(
-                f"Finding {index} has a non-numeric risk score: {source}"
+                f"Finding {index} has a non-numeric risk score"
             )
         if not 0 <= score <= 100:
             raise RiskTrendWarningError(
-                f"Finding {index} has a risk score outside 0..100: {source}"
+                f"Finding {index} has a risk score outside 0..100"
             )
 
     return data
@@ -64,11 +64,11 @@ def _score(finding: dict[str, Any]) -> float:
 
 def _index(report: dict[str, Any], label: str) -> dict[tuple[str, str, str, str], dict[str, Any]]:
     indexed: dict[tuple[str, str, str, str], dict[str, Any]] = {}
-    for finding in report.get("findings", []):
+    for index, finding in enumerate(report.get("findings", [])):
         key = _identity(finding)
         if key in indexed:
             raise RiskTrendWarningError(
-                f"Duplicate stable finding identity in {label}: {key}"
+                f"Duplicate stable finding identity at finding {index}"
             )
         indexed[key] = finding
     return indexed

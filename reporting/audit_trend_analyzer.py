@@ -24,23 +24,23 @@ def _read_report(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise AuditTrendError(f"Cannot read report {path} ({type(exc).__name__}).") from exc
+        raise AuditTrendError("Cannot read report (OSError).") from exc
     except json.JSONDecodeError as exc:
-        raise AuditTrendError(f"Invalid JSON in {path} ({type(exc).__name__}).") from exc
+        raise AuditTrendError("Invalid report JSON (JSONDecodeError).") from exc
 
     if not isinstance(data, dict):
-        raise AuditTrendError(f"Report must contain a JSON object: {path}")
+        raise AuditTrendError("Report must contain a JSON object.")
 
     findings = data.get("findings")
     if not isinstance(findings, list):
         raise AuditTrendError(
-            f"Report has no top-level findings list: {path}"
+            "Report has no top-level findings list."
         )
 
     for index, finding in enumerate(findings):
         if not isinstance(finding, dict):
             raise AuditTrendError(
-                f"Finding {index} in {path} must be a JSON object"
+                f"Finding {index} must be a JSON object"
             )
 
     return data
@@ -59,7 +59,7 @@ def _identity(finding: dict[str, Any], index: int, report: Path) -> tuple:
 
     if not category or not title or not scanner:
         raise AuditTrendError(
-            f"Finding {index} in {report} lacks category, title, or scanner; "
+            f"Finding {index} lacks category, title, or scanner; "
             "cannot safely compare it across reports."
         )
 
@@ -99,8 +99,7 @@ def _index_findings(
         identity = _identity(finding, index, report)
         if identity in indexed:
             raise AuditTrendError(
-                f"Duplicate stable finding identity in {report}: "
-                f"{identity!r}"
+                "Duplicate stable finding identity in report."
             )
         indexed[identity] = finding
     return indexed

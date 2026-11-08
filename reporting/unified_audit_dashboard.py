@@ -13,13 +13,13 @@ class DashboardError(ValueError):
 
 def _load_json(path: Path, label: str) -> dict[str, Any]:
     if not path.is_file():
-        raise DashboardError(f"{label} file does not exist: {path}")
+        raise DashboardError("Dashboard input file does not exist.")
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise DashboardError(f"Cannot read {label} JSON ({type(exc).__name__}).") from exc
+        raise DashboardError(f"Cannot read dashboard JSON ({type(exc).__name__}).") from exc
     if not isinstance(data, dict):
-        raise DashboardError(f"{label} JSON root must be an object.")
+        raise DashboardError("Dashboard JSON root must be an object.")
     return data
 
 
@@ -181,7 +181,7 @@ def create_unified_dashboard(
         raise DashboardError("Output cannot overwrite any input report.")
     if json_path.exists() or md_path.exists():
         existing = json_path if json_path.exists() else md_path
-        raise DashboardError(f"Refusing to overwrite existing output: {existing}")
+        raise DashboardError("Refusing to overwrite existing output.")
 
     loaded = {
         name: _load_json(path, name.replace("_", " "))
@@ -203,12 +203,12 @@ def create_unified_dashboard(
             output.parent.mkdir(parents=True, exist_ok=True)
             temp = output.with_name(output.name + ".batch54-tmp")
             if temp.exists():
-                raise DashboardError(f"Temporary output already exists: {temp}")
+                raise DashboardError("Temporary output already exists.")
             temp.write_text(content, encoding="utf-8")
             staged.append((temp, output))
         for temp, output in staged:
             if output.exists():
-                raise DashboardError(f"Refusing to overwrite existing output: {output}")
+                raise DashboardError("Refusing to overwrite existing output.")
         for temp, output in staged:
             temp.replace(output)
     except Exception:

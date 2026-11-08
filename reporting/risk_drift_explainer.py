@@ -21,40 +21,40 @@ def _load_report(path: str | Path) -> dict[str, Any]:
     try:
         data = json.loads(source.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise RiskDriftError(f"Cannot read report {source} ({type(exc).__name__}).") from exc
+        raise RiskDriftError(f"Cannot read report ({type(exc).__name__}).") from exc
     except json.JSONDecodeError as exc:
-        raise RiskDriftError(f"Invalid JSON in {source} ({type(exc).__name__}).") from exc
+        raise RiskDriftError(f"Invalid report JSON ({type(exc).__name__}).") from exc
 
     if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
-        raise RiskDriftError(f"{source}: expected an object with a findings list")
+        raise RiskDriftError("Report must be an object with a findings list.")
 
     seen = set()
     for index, finding in enumerate(data["findings"]):
         if not isinstance(finding, dict):
-            raise RiskDriftError(f"{source}: finding {index} must be an object")
+            raise RiskDriftError(f"Finding {index} must be an object")
         for field in IDENTITY_FIELDS:
             if not isinstance(finding.get(field, ""), str):
                 raise RiskDriftError(
-                    f"{source}: finding {index} has invalid {field}"
+                    f"Finding {index} has an invalid identity field"
                 )
         score = finding.get("risk_score", finding.get("risk", 0))
         if isinstance(score, bool) or not isinstance(score, (int, float)):
             raise RiskDriftError(
-                f"{source}: finding {index} has a non-numeric risk score"
+                f"Finding {index} has a non-numeric risk score"
             )
         if not math.isfinite(score) or not 0 <= score <= 100:
             raise RiskDriftError(
-                f"{source}: finding {index} risk score must be finite and 0..100"
+                f"Finding {index} risk score must be finite and 0..100"
             )
         severity = str(finding.get("severity", "INFO")).upper()
         if severity not in {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}:
             raise RiskDriftError(
-                f"{source}: finding {index} has unknown severity {severity!r}"
+                f"Finding {index} has unknown severity"
             )
         key = tuple(finding.get(field, "") for field in IDENTITY_FIELDS)
         if key in seen:
             raise RiskDriftError(
-                f"{source}: duplicate finding identity at index {index}"
+                f"Duplicate finding identity at index {index}"
             )
         seen.add(key)
     return data
@@ -87,7 +87,7 @@ def explain_risk_drift(
     # Reuse file-level validation rules for direct callers too.
     for label, report in ((baseline_label, baseline), (current_label, current)):
         if not isinstance(report, dict) or not isinstance(report.get("findings"), list):
-            raise RiskDriftError(f"{label}: expected a report with findings list")
+            raise RiskDriftError("Expected a report with a findings list.")
         _load_report_object(report, label)
 
     old, new = _index(baseline), _index(current)
@@ -193,21 +193,21 @@ def _load_report_object(report: dict[str, Any], label: str) -> None:
     seen = set()
     for index, finding in enumerate(report["findings"]):
         if not isinstance(finding, dict):
-            raise RiskDriftError(f"{label}: finding {index} must be an object")
+            raise RiskDriftError(f"Finding {index} must be an object")
         for field in IDENTITY_FIELDS:
             if not isinstance(finding.get(field, ""), str):
-                raise RiskDriftError(f"{label}: finding {index} has invalid {field}")
+                raise RiskDriftError(f"Finding {index} has an invalid identity field")
         score = finding.get("risk_score", finding.get("risk", 0))
         if isinstance(score, bool) or not isinstance(score, (int, float)):
-            raise RiskDriftError(f"{label}: finding {index} has invalid risk score")
+            raise RiskDriftError(f"Finding {index} has invalid risk score")
         if not math.isfinite(score) or not 0 <= score <= 100:
-            raise RiskDriftError(f"{label}: finding {index} score must be finite and 0..100")
+            raise RiskDriftError(f"Finding {index} score must be finite and 0..100")
         severity = str(finding.get("severity", "INFO")).upper()
         if severity not in {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}:
-            raise RiskDriftError(f"{label}: finding {index} has unknown severity")
+            raise RiskDriftError(f"Finding {index} has unknown severity")
         key = tuple(finding.get(field, "") for field in IDENTITY_FIELDS)
         if key in seen:
-            raise RiskDriftError(f"{label}: duplicate finding identity")
+            raise RiskDriftError(f"duplicate finding identity at finding {index}")
         seen.add(key)
 
 

@@ -53,9 +53,9 @@ def _load_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise ClassificationSuggestionError(f"Cannot read {path} (OSError).") from exc
+        raise ClassificationSuggestionError("Cannot read input (OSError).") from exc
     except json.JSONDecodeError as exc:
-        raise ClassificationSuggestionError(f"Invalid JSON in {path} (JSONDecodeError).") from exc
+        raise ClassificationSuggestionError("Invalid input JSON (JSONDecodeError).") from exc
 
 
 def _string(value: Any) -> str:

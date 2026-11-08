@@ -19,11 +19,11 @@ def _load_report(path: str | Path) -> dict[str, Any]:
     try:
         data = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise RiskCorrelationError(f"Cannot read report {source} ({type(exc).__name__}).") from exc
+        raise RiskCorrelationError(f"Cannot read report ({type(exc).__name__}).") from exc
     if not isinstance(data, dict):
-        raise RiskCorrelationError(f"Report must be a JSON object: {source}")
+        raise RiskCorrelationError("Report must be a JSON object.")
     if not isinstance(data.get("findings"), list):
-        raise RiskCorrelationError(f"Report must contain a findings list: {source}")
+        raise RiskCorrelationError("Report must contain a findings list.")
     return data
 
 
@@ -41,26 +41,26 @@ def _index(report: dict[str, Any], label: str) -> dict[tuple[str, str, str, str]
     for position, finding in enumerate(report["findings"]):
         if not isinstance(finding, dict):
             raise RiskCorrelationError(
-                f"{label}: finding at index {position} must be an object"
+                f"Finding at index {position} must be an object"
             )
         identity = _identity(finding)
         if identity in indexed:
             raise RiskCorrelationError(
-                f"{label}: duplicate stable finding identity at index {position}"
+                f"duplicate stable finding identity at index {position}"
             )
         score = finding.get("risk_score", finding.get("score"))
         if isinstance(score, bool) or not isinstance(score, (int, float)):
             raise RiskCorrelationError(
-                f"{label}: finding at index {position} has an invalid risk score"
+                f"Finding at index {position} has an invalid risk score"
             )
         if not math.isfinite(score) or not 0 <= score <= 100:
             raise RiskCorrelationError(
-                f"{label}: risk score must be finite and between 0 and 100"
+                "Risk score must be finite and between 0 and 100."
             )
         severity = finding.get("severity", "INFO")
         if not isinstance(severity, str) or not severity.strip():
             raise RiskCorrelationError(
-                f"{label}: finding at index {position} has invalid severity"
+                f"Finding at index {position} has invalid severity"
             )
         indexed[identity] = {**finding, "_validated_score": float(score)}
     return indexed
