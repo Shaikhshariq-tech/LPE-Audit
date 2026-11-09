@@ -56,7 +56,7 @@ third-party runtime packages are listed there.
 
 Open a Linux terminal and change to the project directory:
 
-    cd "/mnt/c/Users/Shariq Saad/Desktop/Linux-Privilege-Escalation-Automation-Toolkit"
+    cd Linux-Privilege-Escalation-Automation-Toolkit
 
 Check Python:
 
@@ -172,6 +172,22 @@ current changes.
 A passing test suite does not replace a controlled scan, manual review, or
 security assessment. Test counts may change as the project evolves; use the
 latest test-run output rather than relying on a fixed count in this document.
+
+## Verified release snapshot (0.7.0)
+
+The recorded release verification included:
+
+- Automated tests: **786 passed, 4 skipped**.
+- Full-scan demonstration: **9 of 9 expected scanner modules completed**.
+- Scan status: **COMPLETE**.
+- Demonstration findings: **23 observations** — 0 Critical, 0 High,
+  0 Medium, 21 Low, and 2 Info.
+- Demonstration scan coverage: **100% scanner completion**. This describes
+  completion of the expected scanner modules, not complete filesystem
+  coverage or proof that all vulnerabilities were detected.
+
+These are recorded verification results for this release and demonstration
+environment. Results on other Linux systems may differ.
 
 ## Project status and limitations
 
