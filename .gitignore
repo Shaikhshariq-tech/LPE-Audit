@@ -6,3 +6,17 @@ venv/
 .env
 backups/
 .git/
+
+# Local backup files
+*.bak
+*.bak-*
+*.pre-*
+
+# Generated scan and batch outputs
+reports/batch*/
+reports/batch*-*.json
+reports/batch*-*.md
+reports/lpe_audit_report.json
+reports/lpe_audit_report.txt
+reports/lpe_audit_suid_report.json
+reports/lpe_audit_suid_report.txt
