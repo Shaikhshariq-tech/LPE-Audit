@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="LPE-Audit: a read-only Linux privilege escalation security auditing toolkit.">
+  <title>LPE-Audit | Linux Security Auditing Toolkit</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1120;
+      --panel: #121d30;
+      --text: #e8eef8;
+      --muted: #a7b5c9;
+      --accent: #55d6be;
+      --line: #263750;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.65;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { width: min(1080px, 90%); margin: auto; }
+    header {
+      border-bottom: 1px solid var(--line);
+      padding: 20px 0;
+    }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .brand { font-size: 1.25rem; font-weight: bold; }
+    .navlinks { display: flex; gap: 20px; flex-wrap: wrap; }
+    .hero { padding: 90px 0 75px; }
+    .eyebrow {
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-size: .85rem;
+      font-weight: bold;
+    }
+    h1 { font-size: clamp(2.4rem, 6vw, 4.5rem); line-height: 1.08; margin: 18px 0; }
+    h2 { font-size: 2rem; margin-top: 0; }
+    h3 { margin-bottom: 8px; }
+    p { color: var(--muted); }
+    .hero p { max-width: 720px; font-size: 1.15rem; }
+    .actions { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 28px; }
+    .button {
+      display: inline-block;
+      padding: 12px 20px;
+      border: 1px solid var(--accent);
+      border-radius: 7px;
+      font-weight: bold;
+    }
+    .primary { background: var(--accent); color: #07131b; }
+    section { padding: 55px 0; border-top: 1px solid var(--line); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .card p { margin-bottom: 0; }
+    .number { color: var(--accent); font-weight: bold; }
+    pre {
+      overflow-x: auto;
+      padding: 18px;
+      border-radius: 8px;
+      background: #060b14;
+      border: 1px solid var(--line);
+      color: #d6e5f5;
+    }
+    .notice {
+      border-left: 4px solid var(--accent);
+      padding: 12px 18px;
+      background: var(--panel);
+    }
+    footer { border-top: 1px solid var(--line); padding: 28px 0; color: var(--muted); }
+    @media (max-width: 600px) {
+      .hero { padding: 60px 0; }
+      .navlinks { gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <nav>
+        <a class="brand" href="#">LPE-Audit</a>
+        <div class="navlinks">
+          <a href="#features">Features</a>
+          <a href="#modules">Modules</a>
+          <a href="#usage">Usage</a>
+          <a href="#reports">Reports</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <section class="hero" style="border:0">
+        <div class="eyebrow">Linux Security · Defensive Auditing · Python</div>
+        <h1>Linux Privilege Escalation<br>Automation Toolkit</h1>
+        <p>
+          LPE-Audit is a Python-based, read-only Linux security auditing
+          toolkit that identifies potential privilege-escalation risks,
+          collects supporting evidence, and generates reports for human review.
+        </p>
+        <p><strong>Version 0.7.0</strong> &nbsp;·&nbsp; Developed by Shariq Ibrahim</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/Shaikhshariq-tech/LPE-Audit">View GitHub Repository</a>
+          <a class="button" href="https://github.com/Shaikhshariq-tech/LPE-Audit/blob/master/README.md">Read Documentation</a>
+          <a class="button" href="https://github.com/Shaikhshariq-tech/LPE-Audit/blob/master/reports/FINAL_PROJECT_REPORT.md">View Project Report</a>
+        </div>
+      </section>
+
+      <section id="features">
+        <h2>Project Overview</h2>
+        <p>
+          Misconfigured permissions, privileged executables, Linux capabilities,
+          scheduled tasks, service configurations, and sudo policies can create
+          opportunities for privilege escalation. LPE-Audit automates selected
+          read-only checks and organizes observations into structured reports.
+        </p>
+        <div class="grid">
+          <article class="card">
+            <h3>Read-only auditing</h3>
+            <p>Inspects selected Linux security configurations without attempting exploitation or automatic remediation.</p>
+          </article>
+          <article class="card">
+            <h3>Evidence collection</h3>
+            <p>Associates findings with evidence to support investigation and manual validation.</p>
+          </article>
+          <article class="card">
+            <h3>Risk analysis</h3>
+            <p>Classifies findings and supports risk prioritization for human review.</p>
+          </article>
+          <article class="card">
+            <h3>Structured reporting</h3>
+            <p>Produces JSON and text reports, with report comparison and remediation-planning support.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="modules">
+        <h2>Nine Security Audit Modules</h2>
+        <div class="grid">
+          <article class="card"><span class="number">01</span><h3>SUID / SGID</h3><p>Identifies files with SUID or SGID permission bits.</p></article>
+          <article class="card"><span class="number">02</span><h3>Linux Capabilities</h3><p>Examines file capabilities that may grant privileged operations.</p></article>
+          <article class="card"><span class="number">03</span><h3>File Permissions</h3><p>Checks selected filesystem permissions for unsafe access.</p></article>
+          <article class="card"><span class="number">04</span><h3>Sudo Policies</h3><p>Reviews available sudo policy information for risky privileges.</p></article>
+          <article class="card"><span class="number">05</span><h3>Cron Configuration</h3><p>Reviews selected scheduled-task configurations and permissions.</p></article>
+          <article class="card"><span class="number">06</span><h3>Systemd Services</h3><p>Examines selected service configuration and permission conditions.</p></article>
+          <article class="card"><span class="number">07</span><h3>PATH Security</h3><p>Checks PATH-related directory permissions and executable resolution.</p></article>
+          <article class="card"><span class="number">08</span><h3>Kernel Inventory</h3><p>Collects kernel information for implemented audit checks.</p></article>
+          <article class="card"><span class="number">09</span><h3>Sensitive Files</h3><p>Checks selected sensitive-file permissions for unsafe access.</p></article>
+        </div>
+      </section>
+
+      <section id="usage">
+        <h2>Getting Started</h2>
+        <p>Clone the repository and run the toolkit in a Linux environment. WSL2 with Ubuntu can be used for a demonstration.</p>
+        <pre><code>git clone https://github.com/Shaikhshariq-tech/LPE-Audit.git
+cd LPE-Audit
+
+python3 main.py --help
+python3 main.py --version
+
+python3 main.py --full-scan --report-dir reports/my-audit</code></pre>
+        <p>
+          Individual scanners can also be selected through command-line options.
+          Consult the README for the complete instructions and available options.
+        </p>
+      </section>
+
+      <section id="reports">
+        <h2>Reports and Verification</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>Final Project Report</h3>
+            <p>Project objectives, scope, architecture, scanners, implementation, and limitations.</p>
+            <p><a href="https://github.com/Shaikhshariq-tech/LPE-Audit/blob/master/reports/FINAL_PROJECT_REPORT.md">Open the report on GitHub →</a></p>
+          </article>
+          <article class="card">
+            <h3>Recorded Test Results</h3>
+            <p>The repository README records a release verification snapshot of 786 tests passed and 4 skipped. This is a recorded result, not a live test.</p>
+            <p><a href="https://github.com/Shaikhshariq-tech/LPE-Audit">Review source and tests →</a></p>
+          </article>
+          <article class="card">
+            <h3>Demonstration Video</h3>
+            <p>The project demonstration video link will be added here when it is published.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="safety">
+        <h2>Responsible Use and Limitations</h2>
+        <div class="notice">
+          <strong>Authorized defensive auditing only.</strong>
+          <p>
+            Use LPE-Audit only on systems you own or are authorized to assess.
+            It is designed for auditing, not exploitation or automatic privilege
+            escalation. It does not automatically change system configuration
+            or remediate findings.
+          </p>
+        </div>
+        <p>
+          Findings may include false positives and require manual verification.
+          Some checks may be incomplete because of permissions, missing utilities,
+          or environmental restrictions. A clean report or passing test suite
+          does not prove that a system is secure or that every vulnerability
+          has been detected.
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container">
+      <strong>LPE-Audit · Version 0.7.0</strong>
+      <p>Developed by Shariq Ibrahim · Python-based Linux security auditing project</p>
+      <a href="https://github.com/Shaikhshariq-tech/LPE-Audit">GitHub Repository</a>
+    </div>
+  </footer>
+</body>
+</html>
